@@ -75,7 +75,7 @@ class AuditReport:
     audit_duration_ms: float
 
 
-class SecurityAuditorAgent:
+class AuditorAgent:
     """
     The Security & Strategy Auditor Agent.
     

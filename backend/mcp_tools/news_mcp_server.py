@@ -783,60 +783,129 @@ class NewsAgentMCP(BaseMCPServer):
         limit: int = 20,
     ) -> List[Dict[str, Any]]:
         """
-        Fetch articles from multiple news sources
+        Fetch articles from multiple news sources using NewsAPI
         
-        Mock implementation - replace with real API calls to:
-        - CNN API
-        - BBC API
-        - Reuters API
-        - AP API
-        - Al Jazeera API
-        - The Guardian API
-        - NPR API
-        - NYT API
+        Real implementation using:
+        - NewsAPI (newsapi.org) for general news
+        - Falls back to mock data if API fails
         """
         articles = []
+        
+        try:
+            import httpx
+            
+            # Try to fetch from NewsAPI
+            api_key = os.getenv("NEWSAPI_KEY", "")
+            
+            if api_key:
+                # Real API call
+                async with httpx.AsyncClient() as client:
+                    # Default to technology news if no categories specified
+                    search_query = "artificial intelligence OR machine learning OR AI" if not categories else " OR ".join(categories)
+                    
+                    url = "https://newsapi.org/v2/everything"
+                    params = {
+                        "q": search_query,
+                        "sortBy": "publishedAt",
+                        "language": "en",
+                        "pageSize": min(limit, 100),
+                        "apiKey": api_key
+                    }
+                    
+                    response = await client.get(url, params=params, timeout=10)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        for i, article in enumerate(data.get("articles", [])[:limit]):
+                            articles.append({
+                                "id": f"news_{i}_{int(datetime.utcnow().timestamp())}",
+                                "source": article.get("source", {}).get("name", "Unknown"),
+                                "category": next(iter(categories), "technology") if categories else "technology",
+                                "region": region,
+                                "title": article.get("title", ""),
+                                "content": article.get("description", "") or article.get("content", ""),
+                                "url": article.get("url", ""),
+                                "published_date": article.get("publishedAt", datetime.utcnow().isoformat()),
+                                "authors": [article.get("author", "Unknown")] if article.get("author") else [],
+                                "keywords": [],
+                                "reading_time": 5,
+                                "has_audio": False,
+                                "audio_url": None,
+                                "voice": None,
+                                "audio_language": None,
+                                "importance_score": 0.7,
+                                "week": datetime.utcnow().isocalendar()[1],
+                                "year": datetime.utcnow().isocalendar()[0],
+                                "is_breaking": False,
+                                "engagement_score": 0,
+                                "created_at": datetime.utcnow().isoformat(),
+                                "updated_at": datetime.utcnow().isoformat(),
+                                "metadata": {}
+                            })
+                        
+                        if articles:
+                            logger.info(f"✅ Fetched {len(articles)} real articles from NewsAPI")
+                            return articles
+                    else:
+                        logger.warning(f"NewsAPI returned status {response.status_code}")
+            
+        except Exception as e:
+            logger.warning(f"NewsAPI call failed: {e}. Using fallback mock data.")
+        
+        # Fallback to mock data
         today = datetime.utcnow()
         week_num = today.isocalendar()[1]
         year = today.isocalendar()[0]
 
-        # Mock articles (in production, call real APIs)
-        mock_sources = sources or [s.value for s in NewsSource]
-        mock_categories = categories or [c.value for c in NewsCategory]
+        # Predefined mock headlines representing Top AI/Data Science news
+        mock_headlines = [
+            ("Tech Giants Announce Major Breakthrough in Generative AI Efficiency", "technology"),
+            ("New Data Science Algorithms Proven to Outperform Traditional ML Pipelines", "science"),
+            ("Global Enterprise Adoption of GenAI Reaches Unprecedented Levels", "business"),
+            ("Breakthrough Algorithm Reduces LLM Context Window Limitations", "technology"),
+            ("AI and Data Science Startups See Record Backing from VC Funds", "business"),
+            ("Generative AI Now Capable of Producing High-Fidelity 3D Worlds", "technology"),
+            ("Researchers Reveal New Open-Source Model that Rivals Closed-Source Leaders", "science"),
+            ("Data Science Framework Polars 1.0 Released, Promising Huge Speedups", "technology"),
+            ("Breakthrough in Quantum Machine Learning Signals Next Era of AI", "science"),
+            ("National Policies Shift to Subsidize Major Breakthroughs in AI Infrastructure", "politics")
+        ]
 
         article_count = 0
-        for source in mock_sources[:len(mock_sources)]:
-            for category in mock_categories[:len(mock_categories)]:
-                if article_count >= limit:
-                    break
+        for headline, category in mock_headlines:
+            if article_count >= limit:
+                break
+                
+            source = sources[0] if sources else "cnn"
 
-                articles.append({
-                    "id": f"news_{article_count}",
-                    "source": source,
-                    "category": category,
-                    "region": region,
-                    "title": f"Breaking {source.upper()} News: {category.title()} Update",
-                    "content": f"Latest {category} news from {source}...",
-                    "summary": f"Summary of {category} news",
-                    "url": f"https://news.example.com/articles/{article_count}",
-                    "published_date": today.isoformat(),
-                    "authors": ["News Staff"],
-                    "keywords": [category, source, "news", "update"],
-                    "reading_time": 5,
-                    "has_audio": False,
-                    "audio_url": None,
-                    "importance_score": 0.8,
-                    "week": week_num,
-                    "year": year,
-                    "is_breaking": article_count % 3 == 0,
-                    "engagement_score": 100,
-                    "created_at": today.isoformat(),
-                    "updated_at": today.isoformat(),
-                    "metadata": {"source_priority": 1},
-                })
-                article_count += 1
+            articles.append({
+                "id": f"news_{article_count}",
+                "source": source,
+                "category": category,
+                "region": region,
+                "title": headline,
+                "content": f"In-depth coverage on: {headline}. This represents a major turning point for the industry...",
+                "summary": f"Summary of AI/Data Science breakthrough: {headline}",
+                "url": f"https://news.example.com/articles/ai-ds-{article_count}",
+                "published_date": today.isoformat(),
+                "authors": ["Tech & AI Staff"],
+                "keywords": [category, "AI", "Data Science", "GenAI", "Breakthrough", "Algorithm"],
+                "reading_time": 6,
+                "has_audio": False,
+                "audio_url": None,
+                "importance_score": 0.95,
+                "week": week_num,
+                "year": year,
+                "is_breaking": True,
+                "engagement_score": 500,
+                "created_at": today.isoformat(),
+                "updated_at": today.isoformat(),
+                "metadata": {"source_priority": 1, "topic": "AI"},
+            })
+            article_count += 1
 
-        logger.info(f"Fetched {len(articles)} mock articles")
+        logger.info(f"Fetched {len(articles)} mock AI/Data Science news articles")
         return articles
 
     async def _summarize_article(
