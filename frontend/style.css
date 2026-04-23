@@ -2477,3 +2477,235 @@ body {
                               animation: micPulse 1s ease-in-out infinite; }
 .agent-node-status.done    { background: rgba(16,185,129,0.2);  color: #10b981; }
 .agent-node-status.stub    { background: rgba(245,158,11,0.15); color: #f59e0b; }
+
+/* ── Thought Trace Sidebar ───────────────────────────────────────────────── */
+
+/* Toggle button in topbar */
+.thought-trace-toggle {
+    position: relative;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(79,172,254,0.1);
+    border: 1px solid rgba(79,172,254,0.25);
+    color: rgba(79,172,254,0.8);
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+}
+.thought-trace-toggle:hover {
+    background: rgba(79,172,254,0.22);
+    border-color: rgba(79,172,254,0.55);
+    color: var(--primary);
+}
+.thought-trace-toggle.active {
+    background: rgba(79,172,254,0.25);
+    border-color: var(--primary);
+    box-shadow: 0 0 12px rgba(79,172,254,0.3);
+    color: var(--primary);
+}
+
+.trace-badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 17px; height: 17px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+
+/* Sidebar */
+.thought-trace-sidebar {
+    position: fixed;
+    top: 0; right: -420px;
+    width: 400px;
+    height: 100vh;
+    background: rgba(10, 12, 20, 0.97);
+    backdrop-filter: blur(20px);
+    border-left: 1px solid rgba(79,172,254,0.2);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: -8px 0 32px rgba(0,0,0,0.5);
+}
+
+.thought-trace-sidebar.open {
+    right: 0;
+}
+
+/* Push main content left on desktop */
+.app-container.trace-open {
+    margin-right: 400px;
+    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 900px) {
+    .thought-trace-sidebar { width: 100vw; right: -100vw; }
+    .app-container.trace-open { margin-right: 0; }
+    .trace-overlay { display: block !important; }
+}
+
+.trace-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+}
+
+.trace-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    flex-shrink: 0;
+}
+
+.trace-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.trace-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.trace-live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #555;
+    transition: background 0.3s;
+}
+.trace-live-dot.live { background: #10b981; animation: micPulse 1.5s ease-in-out infinite; }
+
+.trace-clear-btn, .trace-close-btn {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 3px 5px;
+    border-radius: 4px;
+    transition: color 0.2s;
+}
+.trace-clear-btn:hover { color: #f59e0b; }
+.trace-close-btn:hover { color: #ef4444; }
+
+/* Legend chips */
+.trace-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    flex-shrink: 0;
+}
+
+.trace-chip {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.trace-chip.orchestrator { background: rgba(79,172,254,0.2);  color: #4facfe; }
+.trace-chip.critic       { background: rgba(239,68,68,0.2);   color: #f87171; }
+.trace-chip.auditor      { background: rgba(16,185,129,0.2);  color: #34d399; }
+.trace-chip.task         { background: rgba(245,158,11,0.2);  color: #fbbf24; }
+.trace-chip.scheduler    { background: rgba(167,139,250,0.2); color: #a78bfa; }
+.trace-chip.research     { background: rgba(236,72,153,0.2);  color: #f472b6; }
+.trace-chip.news         { background: rgba(99,102,241,0.2);  color: #818cf8; }
+.trace-chip.knowledge    { background: rgba(20,184,166,0.2);  color: #2dd4bf; }
+
+/* Feed */
+.thought-trace-feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.trace-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 100%;
+    color: #444;
+    text-align: center;
+    font-size: 0.83rem;
+    line-height: 1.5;
+}
+
+/* Individual trace entries */
+.trace-entry {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 0.81rem;
+    line-height: 1.45;
+    animation: streamSlideIn 0.2s ease-out forwards;
+    border-left: 2px solid transparent;
+}
+
+.trace-entry.type-thought   { background: rgba(255,255,255,0.02); border-left-color: rgba(79,172,254,0.2); }
+.trace-entry.type-dialogue  { background: rgba(79,172,254,0.05);  border-left-color: rgba(79,172,254,0.5); }
+.trace-entry.type-finding   { background: rgba(16,185,129,0.06);  border-left-color: #10b981; }
+.trace-entry.type-action    { background: rgba(245,158,11,0.06);  border-left-color: #f59e0b; }
+.trace-entry.type-alert     { background: rgba(239,68,68,0.07);   border-left-color: #ef4444; }
+.trace-entry.type-result    { background: rgba(16,185,129,0.09);  border-left-color: #10b981; }
+
+.trace-agent-pill {
+    flex-shrink: 0;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-top: 1px;
+}
+.trace-agent-pill.orchestrator { background: rgba(79,172,254,0.2);  color: #4facfe; }
+.trace-agent-pill.critic       { background: rgba(239,68,68,0.2);   color: #f87171; }
+.trace-agent-pill.auditor      { background: rgba(16,185,129,0.2);  color: #34d399; }
+.trace-agent-pill.task         { background: rgba(245,158,11,0.2);  color: #fbbf24; }
+.trace-agent-pill.scheduler    { background: rgba(167,139,250,0.2); color: #a78bfa; }
+.trace-agent-pill.research     { background: rgba(236,72,153,0.2);  color: #f472b6; }
+.trace-agent-pill.news         { background: rgba(99,102,241,0.2);  color: #818cf8; }
+.trace-agent-pill.knowledge    { background: rgba(20,184,166,0.2);  color: #2dd4bf; }
+
+.trace-text  { flex: 1; color: #ccc; }
+.trace-ts    { font-size: 0.65rem; color: #444; flex-shrink: 0; margin-top: 2px; }
+
+/* Dialogue connector line — makes it look like a conversation */
+.trace-entry.type-dialogue .trace-agent-pill::before {
+    content: "↗ ";
+    opacity: 0.6;
+}
+
+/* CSS classes referenced in activity messages */
+.trace-orchestrator { color: #4facfe; font-weight: 600; }
+.trace-critic       { color: #f87171; font-weight: 600; }
+.trace-auditor      { color: #34d399; font-weight: 600; }
+.trace-task         { color: #fbbf24; font-weight: 600; }
+.trace-scheduler    { color: #a78bfa; font-weight: 600; }
+.trace-research     { color: #f472b6; font-weight: 600; }
+.trace-news         { color: #818cf8; font-weight: 600; }
+.trace-knowledge    { color: #2dd4bf; font-weight: 600; }

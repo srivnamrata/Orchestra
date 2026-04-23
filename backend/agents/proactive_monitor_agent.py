@@ -412,10 +412,10 @@ Respond ONLY with valid JSON (no markdown):
 
     # ── Reasoning helpers ─────────────────────────────────────────────────────
 
-    async def _think(self, agent: str, message: str):
-        """Push a 'thinking' event to the reasoning queue."""
+    async def _think(self, agent: str, message: str, thought_type: str = "thought"):
+        """Push a 'thinking' event to the reasoning queue AND the global thought bus."""
         event = {
-            "type":    "thought",
+            "type":    thought_type,
             "agent":   agent,
             "message": message,
             "ts":      datetime.now().strftime("%H:%M:%S"),
@@ -424,6 +424,18 @@ Respond ONLY with valid JSON (no markdown):
         try:
             self.reasoning_queue.put_nowait(event)
         except asyncio.QueueFull:
+            pass
+        # Also broadcast to the global thought bus (Thought Trace sidebar)
+        try:
+            from backend.api.main import emit_thought
+            role_map = {
+                "orchestrator": "Orchestrator",
+                "critic":       "Critic Agent",
+                "auditor":      "Auditor",
+                "knowledge":    "Knowledge Agent",
+            }
+            emit_thought(agent, role_map.get(agent, agent.title()), message, thought_type)
+        except Exception:
             pass
 
     async def _alert(self, agent: str, message: str):

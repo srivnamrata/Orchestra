@@ -30,6 +30,10 @@
                         <i class="fa-solid fa-search"></i>
                         <span class="command-hint-shortcut">⌘K</span>
                     </button>
+                    <button class="thought-trace-toggle" id="thought-trace-toggle" onclick="toggleThoughtTrace()" title="Toggle Agent Reasoning Sidebar">
+                        <i class="fa-solid fa-brain"></i>
+                        <span class="trace-badge" id="trace-badge" style="display:none">0</span>
+                    </button>
                     <div class="user-profile">
                         <div class="avatar">U</div>
                         <span>Administrator</span>
@@ -549,6 +553,43 @@
 
             </div>
         </main>
+    <!-- Thought Trace Sidebar -->
+    <div id="thought-trace-sidebar" class="thought-trace-sidebar">
+        <div class="trace-sidebar-header">
+            <div class="trace-title">
+                <i class="fa-solid fa-brain"></i>
+                <span>Agent Thought Trace</span>
+            </div>
+            <div class="trace-controls">
+                <span class="trace-live-dot" id="trace-live-dot"></span>
+                <span id="trace-live-label" style="font-size:0.72rem;color:#888;">connecting…</span>
+                <button class="trace-clear-btn" onclick="clearThoughtTrace()" title="Clear">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                <button class="trace-close-btn" onclick="toggleThoughtTrace()" title="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+        <div class="trace-legend">
+            <span class="trace-chip orchestrator">Orchestrator</span>
+            <span class="trace-chip critic">Critic</span>
+            <span class="trace-chip auditor">Auditor</span>
+            <span class="trace-chip task">Task</span>
+            <span class="trace-chip scheduler">Scheduler</span>
+            <span class="trace-chip research">Research</span>
+        </div>
+        <div id="thought-trace-feed" class="thought-trace-feed">
+            <div class="trace-placeholder">
+                <i class="fa-solid fa-brain" style="font-size:1.6rem;opacity:0.15;"></i>
+                <p>Waiting for agent activity…<br>Submit a goal to see live reasoning.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar overlay for mobile -->
+    <div id="trace-overlay" class="trace-overlay" onclick="toggleThoughtTrace()"></div>
+
     </div>
 
     <!-- Task Creation Modal -->

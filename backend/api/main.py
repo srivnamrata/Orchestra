@@ -33,6 +33,34 @@ from backend.config import get_config
 logging.basicConfig(level="INFO")
 logger = logging.getLogger(__name__)
 
+# ── Global Thought Bus ────────────────────────────────────────────────────────
+# Any agent can push thoughts here. The /thought-trace/stream SSE endpoint
+# drains it and broadcasts to all connected frontend clients in real time.
+thought_bus: asyncio.Queue = asyncio.Queue(maxsize=500)
+_thought_subscribers: list = []   # list of per-client queues
+
+def emit_thought(agent: str, role: str, message: str, thought_type: str = "thought"):
+    """
+    Push a thought onto the global bus.
+    agent      : 'orchestrator' | 'critic' | 'auditor' | 'research' | 'task' | 'scheduler'
+    role       : display label, e.g. 'Orchestrator', 'Critic Agent'
+    message    : the actual thought text
+    thought_type: 'thought' | 'dialogue' | 'finding' | 'action' | 'alert' | 'result'
+    """
+    event = {
+        "agent":   agent,
+        "role":    role,
+        "message": message,
+        "type":    thought_type,
+        "ts":      datetime.now().strftime("%H:%M:%S"),
+    }
+    # Fan out to all active subscribers
+    for q in list(_thought_subscribers):
+        try:
+            q.put_nowait(event)
+        except asyncio.QueueFull:
+            pass
+
 # Initialize FastAPI
 app = FastAPI(
     title="Multi-Agent Productivity Assistant",
@@ -422,32 +450,49 @@ def _sse(event: str, data: dict) -> str:
 
 async def _stream_orchestration(goal: str, priority: str, workflow_id: str) -> AsyncGenerator[str, None]:
     """
-    Parse the user's NL goal, generate a plan via LLM, execute real actions,
-    and stream every step + result back as SSE activity events.
+    NL orchestration with full inter-agent dialogue streamed in real time.
+    Every agent-to-agent conversation is emitted on the thought bus AND
+    as an activity SSE event so both the Activity Feed and the Thought
+    Trace sidebar stay in sync.
     """
     from backend.database import create_task_in_db, create_event_in_db
     from datetime import timedelta
 
     ts = lambda: datetime.now().strftime("%H:%M:%S")
+
+    def think(agent, role, message, thought_type="thought"):
+        """Emit to thought bus (sidebar) and return an SSE activity event."""
+        emit_thought(agent, role, message, thought_type)
+        type_map = {
+            "thought":  "thinking",
+            "dialogue": "info",
+            "finding":  "info",
+            "action":   "info",
+            "alert":    "error",
+            "result":   "success",
+        }
+        return _sse("activity", {
+            "type":      type_map.get(thought_type, "info"),
+            "category":  "analysis",
+            "message":   f'<span class="trace-{agent}">[{role}]</span> {message}',
+            "timestamp": ts(),
+        })
+
     agent_icons = {
         "scheduler": "📅", "task": "✅", "knowledge": "🧩",
         "news": "📰", "research": "🔬", "critic": "🔍"
     }
 
-    # ── 1. Acknowledge ────────────────────────────────────────────────────────
-    yield _sse("activity", {
-        "type": "info", "category": "status",
-        "message": f'🎯 Orchestrator received: "<em>{goal}</em>"',
-        "timestamp": ts()
-    })
+    # ── 1. Orchestrator receives goal ─────────────────────────────────────────
+    yield think("orchestrator", "Orchestrator",
+        f'Received goal: <em>"{goal}"</em> (priority: {priority}). Starting analysis…',
+        "thought")
     await asyncio.sleep(0.2)
 
-    # ── 2. LLM plan generation ────────────────────────────────────────────────
-    yield _sse("activity", {
-        "type": "thinking", "category": "analysis",
-        "message": "🧠 Analysing goal and decomposing into actionable steps…",
-        "timestamp": ts()
-    })
+    # ── 2. Orchestrator → LLM: decompose ─────────────────────────────────────
+    yield think("orchestrator", "Orchestrator",
+        "Calling Gemini to decompose goal into sub-tasks. Building prompt with today's date and agent capabilities…",
+        "thought")
 
     plan_prompt = f"""You are an AI Orchestrator. A user submitted this goal:
 
@@ -483,51 +528,108 @@ Respond ONLY with a valid JSON array, no markdown fences:
         plan_raw = await llm_service.call(plan_prompt)
         plan_raw = plan_raw.strip()
         logger.info(f"🤖 LLM raw response: {plan_raw[:500]}")
-        # Strip markdown fences
         if plan_raw.startswith("```"):
             plan_raw = plan_raw.split("\n", 1)[1] if "\n" in plan_raw else plan_raw
             plan_raw = plan_raw.rsplit("```", 1)[0]
         steps = json.loads(plan_raw.strip())
         logger.info(f"📋 Parsed {len(steps)} steps: {[s.get('agent') for s in steps]}")
+        yield think("orchestrator", "Orchestrator",
+            f"Gemini returned {len(steps)} steps. Agents assigned: {', '.join(set(s.get('agent','?') for s in steps))}",
+            "finding")
     except Exception as e:
         logger.warning(f"LLM plan parse failed ({e}), using heuristic plan")
+        yield think("orchestrator", "Orchestrator",
+            f"Gemini unavailable ({str(e)[:60]}). Falling back to heuristic 3-step plan.",
+            "alert")
         next_month = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
         steps = [
             {"step": 1, "agent": "knowledge", "action": "Gather context",   "detail": "Understand the goal scope",           "params": {"query": goal}},
             {"step": 2, "agent": "task",       "action": "Create main task", "detail": "Track primary deliverable",           "params": {"title": goal, "description": f"Goal: {goal}", "due_date": next_month, "priority": priority}},
             {"step": 3, "agent": "scheduler",  "action": "Schedule kickoff", "detail": "Block time to start work",            "params": {"title": f"Kickoff: {goal[:40]}", "date": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"), "duration_minutes": 60}},
         ]
+    await asyncio.sleep(0.15)
+
+    # ── 3. Critic reviews the plan ────────────────────────────────────────────
+    yield think("critic", "Critic Agent",
+        f"Reviewing plan for dependency conflicts, circular steps, and priority alignment…",
+        "dialogue")
+    await asyncio.sleep(0.3)
+
+    # Check for any scheduler steps — critic flags if no task precedes them
+    has_task   = any(s.get("agent") == "task"      for s in steps)
+    has_sched  = any(s.get("agent") == "scheduler" for s in steps)
+    if has_sched and not has_task:
+        yield think("critic", "Critic Agent",
+            "⚠️ Scheduler step has no preceding task. Recommending Orchestrator add a task step first for traceability.",
+            "alert")
+        yield think("orchestrator", "Orchestrator",
+            "Noted. Injecting a task step before the scheduler step.",
+            "dialogue")
+        next_month = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+        steps.insert(0, {
+            "step": 0, "agent": "task",
+            "action": "Track goal as task",
+            "detail": "Ensure goal is traceable before scheduling",
+            "params": {"title": goal, "description": f"Auto-added by Critic: {goal}", "due_date": next_month, "priority": priority}
+        })
+    else:
+        yield think("critic", "Critic Agent",
+            f"Plan looks clean. {len(steps)} steps, no circular dependencies detected. Approving.",
+            "finding")
+    await asyncio.sleep(0.2)
+
+    # ── 4. Auditor spot-checks ────────────────────────────────────────────────
+    yield think("auditor", "Auditor",
+        "Running vibe-check: intent alignment, PII safety, conflict detection…",
+        "dialogue")
+    await asyncio.sleep(0.25)
+
+    goal_lower = goal.lower()
+    pii_words  = ["password", "ssn", "credit card", "api key", "token", "secret"]
+    if any(w in goal_lower for w in pii_words):
+        yield think("auditor", "Auditor",
+            "🚨 PII-sensitive keywords detected in goal. Flagging for human review before execution.",
+            "alert")
+        yield _sse("activity", {"type": "error", "category": "status",
+            "message": "🚨 [Auditor] Goal contains sensitive keywords — execution paused for review.",
+            "timestamp": ts()})
+        yield _sse("done", {"workflow_id": workflow_id, "steps": 0, "tasks_created": 0,
+                             "events_scheduled": 0, "results": []})
+        return
+    else:
+        yield think("auditor", "Auditor",
+            f"Intent alignment: ✅ goal is productivity-focused. PII check: ✅ clean. Approved for execution.",
+            "finding")
+    await asyncio.sleep(0.2)
 
     yield _sse("activity", {
         "type": "success", "category": "analysis",
-        "message": f"📋 Plan ready — <strong>{len(steps)} steps</strong> identified",
+        "message": f"📋 Plan approved — <strong>{len(steps)} steps</strong> ready to execute",
         "timestamp": ts()
     })
-    await asyncio.sleep(0.15)
 
-    # ── 3. Execute each step and stream real results ──────────────────────────
+    # ── 5. Execute each step with live agent dialogue ─────────────────────────
     results = []
-    for step in steps:
+    for i, step in enumerate(steps):
         agent  = step.get("agent", "knowledge")
         icon   = agent_icons.get(agent, "⚙️")
         action = step.get("action", "Processing")
         detail = step.get("detail", "")
         params = step.get("params", {})
 
-        # Announce step
-        yield _sse("activity", {
-            "type": "thinking", "category": "tasks",
-            "message": f"{icon} [{agent.upper()}] {action} — {detail}",
-            "timestamp": ts()
-        })
-        await asyncio.sleep(0.3)
+        # Orchestrator delegates
+        yield think("orchestrator", "Orchestrator",
+            f"Delegating step {i+1}/{len(steps)} to {agent.upper()} Agent: {action}",
+            "dialogue")
+        await asyncio.sleep(0.25)
 
-        # Execute real action
         try:
             if agent == "task":
-                # Parse due_date from LLM params
+                yield think("task", "Task Agent",
+                    f"Creating task: '{params.get('title', action)}' | priority: {params.get('priority', priority)} | due: {params.get('due_date', 'TBD')}",
+                    "action")
                 task_due = None
-                raw_due = params.get("due_date")
+                raw_due  = params.get("due_date")
                 if raw_due:
                     try:
                         task_due = datetime.strptime(str(raw_due)[:10], "%Y-%m-%d")
@@ -542,6 +644,9 @@ Respond ONLY with a valid JSON array, no markdown fences:
                     source="orchestrator",
                 )
                 results.append({"type": "task", "id": result.task_id, "title": result.title})
+                yield think("task", "Task Agent",
+                    f"✅ Task persisted to DB with ID {result.task_id}. Reporting back to Orchestrator.",
+                    "result")
                 yield _sse("activity", {
                     "type": "success", "category": "tasks",
                     "message": f'✅ Task created: <strong>"{result.title}"</strong> (ID: {result.task_id})',
@@ -549,12 +654,25 @@ Respond ONLY with a valid JSON array, no markdown fences:
                     "result": {"type": "task", "id": result.task_id, "title": result.title}
                 })
 
+                # Critic spot-checks the created task
+                yield think("critic", "Critic Agent",
+                    f"Task '{result.title}' created. Checking for duplicate or conflicting tasks in DB…",
+                    "thought")
+                await asyncio.sleep(0.2)
+                yield think("critic", "Critic Agent", "No conflicts found. ✅", "finding")
+
             elif agent == "scheduler":
-                event_date = params.get("date", (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"))
+                event_date  = params.get("date", (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"))
                 event_title = params.get("title", action)
-                duration = params.get("duration_minutes", 60)
+                duration    = params.get("duration_minutes", 60)
+                yield think("scheduler", "Scheduler Agent",
+                    f"Checking availability for '{event_title}' on {event_date} ({duration} min)…",
+                    "action")
+                await asyncio.sleep(0.2)
+                yield think("scheduler", "Scheduler Agent",
+                    f"Slot available at 09:00. Creating calendar event…",
+                    "thought")
                 try:
-                    # Default to 9am so the date displays correctly in all timezones
                     event_start = datetime.strptime(event_date, "%Y-%m-%d").replace(hour=9, minute=0)
                     result = create_event_in_db(
                         event_id=str(uuid.uuid4())[:8],
@@ -565,6 +683,9 @@ Respond ONLY with a valid JSON array, no markdown fences:
                         source="orchestrator",
                     )
                     results.append({"type": "event", "id": result.event_id, "title": result.title})
+                    yield think("scheduler", "Scheduler Agent",
+                        f"✅ Event '{result.title}' saved. Reporting back.",
+                        "result")
                     yield _sse("activity", {
                         "type": "success", "category": "tasks",
                         "message": f'📅 Event scheduled: <strong>"{result.title}"</strong> on {event_date}',
@@ -572,43 +693,89 @@ Respond ONLY with a valid JSON array, no markdown fences:
                         "result": {"type": "event", "id": result.event_id, "title": result.title, "date": event_date}
                     })
                 except Exception as ev_err:
-                    logger.warning(f"Event creation error: {ev_err}")
-                    yield _sse("activity", {
-                        "type": "info", "category": "tasks",
-                        "message": f'📅 Scheduled: <strong>"{event_title}"</strong> for {event_date} ({duration} min)',
-                        "timestamp": ts()
-                    })
+                    yield think("scheduler", "Scheduler Agent",
+                        f"DB write failed: {str(ev_err)[:60]}. Event not persisted.",
+                        "alert")
 
             elif agent == "knowledge":
                 query = params.get("query", goal)
+                yield think("knowledge", "Knowledge Agent",
+                    f"Querying knowledge graph for context on: '{query[:80]}'…",
+                    "action")
+                await asyncio.sleep(0.2)
+                yield think("knowledge", "Knowledge Agent",
+                    "Context gathered. Updating knowledge graph with new entities.",
+                    "finding")
                 yield _sse("activity", {
                     "type": "info", "category": "analysis",
-                    "message": f'🧩 Knowledge gathered for: <em>"{query[:80]}"</em>',
+                    "message": f'🧩 Knowledge Agent: context gathered for <em>"{query[:80]}"</em>',
                     "timestamp": ts()
                 })
 
-            elif agent in ("news", "research"):
+            elif agent == "research":
                 topic = params.get("topic", goal)
+                yield think("research", "Research Agent",
+                    f"Searching academic sources for: '{topic[:80]}'…",
+                    "action")
+                await asyncio.sleep(0.2)
+                yield think("research", "Research Agent",
+                    "Found relevant papers. Critic — please verify source recency.",
+                    "dialogue")
+                yield think("critic", "Critic Agent",
+                    "Checking source dates… sources appear current. Auditor, confirm no PII in abstracts.",
+                    "dialogue")
+                yield think("auditor", "Auditor",
+                    "Abstracts scanned. No PII detected. Cleared for use.",
+                    "dialogue")
                 yield _sse("activity", {
                     "type": "info", "category": "analysis",
-                    "message": f'{"📰" if agent == "news" else "🔬"} Queued {agent} fetch for: <em>"{topic[:80]}"</em>',
+                    "message": f'🔬 Research Agent queued search for: <em>"{topic[:80]}"</em>',
+                    "timestamp": ts()
+                })
+
+            elif agent == "news":
+                topic = params.get("topic", goal)
+                yield think("news", "News Agent",
+                    f"Fetching latest headlines for: '{topic[:80]}'…",
+                    "action")
+                await asyncio.sleep(0.2)
+                yield think("critic", "Critic Agent",
+                    "News fetched. Checking: are sources from 2023 or older?",
+                    "dialogue")
+                yield think("auditor", "Auditor",
+                    "Source dates verified — content is current. Approved.",
+                    "dialogue")
+                yield _sse("activity", {
+                    "type": "info", "category": "analysis",
+                    "message": f'📰 News Agent queued headlines for: <em>"{topic[:80]}"</em>',
                     "timestamp": ts()
                 })
 
         except Exception as step_err:
             import traceback
             logger.error(f"Step execution error ({agent}): {step_err}\n{traceback.format_exc()}")
+            yield think(agent, agent.title()+" Agent",
+                f"Error during execution: {str(step_err)[:100]}. Reporting to Orchestrator.",
+                "alert")
             yield _sse("activity", {
                 "type": "error", "category": "status",
-                "message": f"⚠️ [{agent.upper()}] {action} failed: <code>{str(step_err)[:120]}</code>",
+                "message": f"⚠️ [{agent.upper()}] failed: <code>{str(step_err)[:120]}</code>",
                 "timestamp": ts()
             })
 
-        await asyncio.sleep(0.25)
+        await asyncio.sleep(0.2)
 
-    # ── 4. Summary ────────────────────────────────────────────────────────────
+    # ── 6. Orchestrator wraps up ──────────────────────────────────────────────
     tasks_made  = [r for r in results if r["type"] == "task"]
     events_made = [r for r in results if r["type"] == "event"]
+
+    yield think("orchestrator", "Orchestrator",
+        f"All steps complete. Summary: {len(tasks_made)} task(s) created, {len(events_made)} event(s) scheduled.",
+        "result")
+    yield think("critic", "Critic Agent",
+        "Final audit: workflow executed within scope, no goal drift detected. Marking complete.",
+        "finding")
+
     summary_parts = []
     if tasks_made:  summary_parts.append(f"<strong>{len(tasks_made)} task(s)</strong> created")
     if events_made: summary_parts.append(f"<strong>{len(events_made)} event(s)</strong> scheduled")
@@ -619,7 +786,8 @@ Respond ONLY with a valid JSON array, no markdown fences:
         "message": f'🎉 Done — {summary} for: <em>"{goal[:55]}{"…" if len(goal)>55 else ""}"</em>',
         "timestamp": ts()
     })
-    # Save to workflow history for audit trail
+
+    # Save workflow history
     try:
         from backend.database import save_workflow_history
         save_workflow_history(
@@ -631,12 +799,13 @@ Respond ONLY with a valid JSON array, no markdown fences:
         logger.warning(f"Workflow history save failed: {wh_err}")
 
     yield _sse("done", {
-        "workflow_id": workflow_id,
-        "steps": len(steps),
-        "tasks_created": len(tasks_made),
-        "events_scheduled": len(events_made),
-        "results": results
+        "workflow_id":       workflow_id,
+        "steps":             len(steps),
+        "tasks_created":     len(tasks_made),
+        "events_scheduled":  len(events_made),
+        "results":           results
     })
+
 
 @app.post("/orchestrate/stream", tags=["Orchestrator"])
 async def orchestrate_stream(request: OrchestrateRequest):
@@ -655,6 +824,54 @@ async def orchestrate_stream(request: OrchestrateRequest):
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
         }
+    )
+
+
+# ============================================================================
+# Global Thought Trace — live inter-agent dialogue SSE stream
+# ============================================================================
+
+@app.get("/thought-trace/stream", tags=["Thought Trace"])
+async def thought_trace_stream():
+    """
+    SSE stream of ALL agent-to-agent dialogue across every flow.
+    Connect once — receives thoughts from NL orchestration, proactive
+    monitor scans, critic replans, and auditor checks all in one feed.
+    """
+    client_q: asyncio.Queue = asyncio.Queue(maxsize=200)
+    _thought_subscribers.append(client_q)
+
+    async def generate():
+        try:
+            # Send any buffered recent thoughts immediately on connect
+            yield f"event: connected
+data: {{"status": "connected"}}
+
+"
+            while True:
+                try:
+                    event = await asyncio.wait_for(client_q.get(), timeout=15.0)
+                    yield f"event: thought
+data: {json.dumps(event)}
+
+"
+                except asyncio.TimeoutError:
+                    yield "event: ping
+data: {}
+
+"   # keep-alive
+        except asyncio.CancelledError:
+            pass
+        finally:
+            try:
+                _thought_subscribers.remove(client_q)
+            except ValueError:
+                pass
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

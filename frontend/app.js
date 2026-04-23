@@ -3373,3 +3373,142 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300000);
     }, 2000);
 });
+
+// ============================================================================
+// Thought Trace Sidebar — global inter-agent dialogue stream
+// ============================================================================
+
+let _traceEventSource  = null;
+let _traceOpen         = false;
+let _traceUnreadCount  = 0;
+let _traceConnected    = false;
+
+function toggleThoughtTrace() {
+    _traceOpen = !_traceOpen;
+    const sidebar   = document.getElementById('thought-trace-sidebar');
+    const overlay   = document.getElementById('trace-overlay');
+    const appCont   = document.querySelector('.app-container');
+    const toggleBtn = document.getElementById('thought-trace-toggle');
+
+    if (_traceOpen) {
+        sidebar.classList.add('open');
+        overlay.style.display = 'block';
+        appCont.classList.add('trace-open');
+        toggleBtn.classList.add('active');
+        _traceUnreadCount = 0;
+        _updateTraceBadge();
+        if (!_traceConnected) _connectThoughtTrace();
+    } else {
+        sidebar.classList.remove('open');
+        overlay.style.display = 'none';
+        appCont.classList.remove('trace-open');
+        toggleBtn.classList.remove('active');
+    }
+}
+
+function _connectThoughtTrace() {
+    if (_traceEventSource) {
+        _traceEventSource.close();
+    }
+
+    const dot   = document.getElementById('trace-live-dot');
+    const label = document.getElementById('trace-live-label');
+
+    _traceEventSource = new EventSource('/thought-trace/stream');
+
+    _traceEventSource.addEventListener('connected', () => {
+        _traceConnected = true;
+        dot.className   = 'trace-live-dot live';
+        label.textContent = 'live';
+        label.style.color = '#10b981';
+    });
+
+    _traceEventSource.addEventListener('thought', (e) => {
+        try {
+            const payload = JSON.parse(e.data);
+            _appendTraceEntry(payload);
+            if (!_traceOpen) {
+                _traceUnreadCount++;
+                _updateTraceBadge();
+            }
+        } catch (_) {}
+    });
+
+    _traceEventSource.addEventListener('ping', () => {});
+
+    _traceEventSource.onerror = () => {
+        _traceConnected = false;
+        dot.className   = 'trace-live-dot';
+        label.textContent = 'reconnecting…';
+        label.style.color = '#888';
+        // Auto-reconnect after 3s
+        setTimeout(() => {
+            if (_traceOpen || _traceEventSource) _connectThoughtTrace();
+        }, 3000);
+    };
+}
+
+function _appendTraceEntry(payload) {
+    const feed = document.getElementById('thought-trace-feed');
+    if (!feed) return;
+
+    // Remove placeholder if present
+    const placeholder = feed.querySelector('.trace-placeholder');
+    if (placeholder) placeholder.remove();
+
+    const typeIcons = {
+        thought:  '',
+        dialogue: '↗',
+        finding:  '✦',
+        action:   '▶',
+        alert:    '⚠',
+        result:   '✓',
+    };
+
+    const icon = typeIcons[payload.type] || '';
+    const el   = document.createElement('div');
+    el.className = `trace-entry type-${payload.type || 'thought'}`;
+    el.innerHTML = `
+        <span class="trace-agent-pill ${payload.agent || 'orchestrator'}">${payload.agent || '?'}</span>
+        <span class="trace-text">${icon ? `<span style="opacity:0.5;margin-right:4px;">${icon}</span>` : ''}${payload.message}</span>
+        <span class="trace-ts">${payload.ts || ''}</span>
+    `;
+    feed.appendChild(el);
+
+    // Auto-scroll to bottom
+    feed.scrollTop = feed.scrollHeight;
+
+    // Keep max 200 entries
+    const entries = feed.querySelectorAll('.trace-entry');
+    if (entries.length > 200) entries[0].remove();
+}
+
+function _updateTraceBadge() {
+    const badge     = document.getElementById('trace-badge');
+    const toggleBtn = document.getElementById('thought-trace-toggle');
+    if (!badge) return;
+    if (_traceUnreadCount > 0 && !_traceOpen) {
+        badge.textContent = _traceUnreadCount > 99 ? '99+' : _traceUnreadCount;
+        badge.style.display = 'flex';
+        toggleBtn.style.animation = 'nlPulse 2s ease-in-out 3';
+    } else {
+        badge.style.display = 'none';
+        toggleBtn.style.animation = '';
+    }
+}
+
+function clearThoughtTrace() {
+    const feed = document.getElementById('thought-trace-feed');
+    if (feed) {
+        feed.innerHTML = '<div class="trace-placeholder"><i class="fa-solid fa-brain" style="font-size:1.6rem;opacity:0.15;"></i><p>Cleared. Waiting for next agent activity…</p></div>';
+    }
+    _traceUnreadCount = 0;
+    _updateTraceBadge();
+}
+
+// Auto-connect on load so the trace is ready before the sidebar is opened
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        _connectThoughtTrace();
+    }, 1500);
+});
