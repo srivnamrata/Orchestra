@@ -2376,15 +2376,26 @@ async function triggerTaskDemo() {
     appendLog('📋 Fetching your task list from database...', 'info');
     
     try {
-        // Fetch stored tasks from database
         const tasksRes = await fetch('/api/tasks?limit=100');
         const tasksData = await tasksRes.json();
-        
-        // Show stored tasks if any
+
+        // Surface any HTTP error or DB error explicitly
+        if (!tasksRes.ok) {
+            const errMsg = tasksData.detail || tasksData.error || `HTTP ${tasksRes.status}`;
+            appendLog(`❌ Database error: ${errMsg}`, 'error');
+            displayAgentContent('task', '⚠️ Database Error', 'fa-exclamation', { error: errMsg });
+            // Also fetch debug info
+            try {
+                const dbRes = await fetch('/api/debug/db');
+                const dbInfo = await dbRes.json();
+                appendLog(`🔍 DB debug: ${JSON.stringify(dbInfo)}`, 'error');
+            } catch (_) {}
+            return;
+        }
+
         if (tasksData.tasks && tasksData.tasks.length > 0) {
             appendLog(`✅ Found ${tasksData.count} task(s) in your list`, 'success');
             
-            // Format tasks for right panel display
             const taskList = tasksData.tasks.map((task, index) => ({
                 id: `task-${index}`,
                 title: task.title,
@@ -2392,38 +2403,39 @@ async function triggerTaskDemo() {
                 details: task.description || 'No description provided'
             }));
             
-            // Display all tasks in right panel
             displayAgentContent('task', `📋 Your Task List (${tasksData.count} total)`, 'fa-list', {
                 tasks: taskList,
                 total_count: tasksData.count,
                 task_summary: taskList.map((t, i) => `${i + 1}. ${t.title} [${tasksData.tasks[i].priority}]`)
             });
             
-            // Also show in console
             tasksData.tasks.forEach((task, index) => {
                 appendLog(`  ${index + 1}. ${task.title} [${task.priority}]`, 'info');
-                if (task.description) {
-                    appendLog(`     📝 ${task.description}`, 'info');
-                }
-                if (task.due_date) {
-                    appendLog(`     📅 Due: ${new Date(task.due_date).toLocaleDateString()}`, 'info');
-                }
+                if (task.description) appendLog(`     📝 ${task.description}`, 'info');
+                if (task.due_date) appendLog(`     📅 Due: ${new Date(task.due_date).toLocaleDateString()}`, 'info');
             });
         } else {
-            appendLog('No stored tasks yet. Click "Create New Task" to add one!', 'info');
-            
-            // Display empty state in right panel
+            // Check if DB itself is reachable before showing empty state
+            try {
+                const dbRes = await fetch('/api/debug/db');
+                const dbInfo = await dbRes.json();
+                if (dbInfo.error) {
+                    appendLog(`❌ DB not reachable: ${dbInfo.error}`, 'error');
+                } else {
+                    appendLog(`ℹ️ No tasks yet — DB is live at ${dbInfo.db_url} (${dbInfo.task_count} tasks)`, 'info');
+                }
+            } catch (_) {}
+
+            appendLog('No stored tasks yet. Click "Create New Task" or use the NL Orchestrator!', 'info');
             displayAgentContent('task', '📋 Your Task List (Empty)', 'fa-list', {
                 status: 'empty',
                 message: 'No tasks created yet',
-                next_action: 'Click "Create New Task" to get started'
+                next_action: 'Use the Orchestrator input above or click "Create New Task"'
             });
         }
     } catch (e) {
         appendLog('Error fetching tasks: ' + e.message, 'error');
-        displayAgentContent('task', '⚠️ Error Loading Tasks', 'fa-exclamation', {
-            error: e.message
-        });
+        displayAgentContent('task', '⚠️ Error Loading Tasks', 'fa-exclamation', { error: e.message });
     }
 }
 

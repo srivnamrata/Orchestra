@@ -533,10 +533,11 @@ Respond ONLY with a valid JSON array, no markdown fences:
                 })
 
         except Exception as step_err:
-            logger.error(f"Step execution error ({agent}): {step_err}")
+            import traceback
+            logger.error(f"Step execution error ({agent}): {step_err}\n{traceback.format_exc()}")
             yield _sse("activity", {
                 "type": "error", "category": "status",
-                "message": f"⚠️ [{agent.upper()}] {action} — could not complete: {str(step_err)[:80]}",
+                "message": f"⚠️ [{agent.upper()}] {action} failed: <code>{str(step_err)[:120]}</code>",
                 "timestamp": ts()
             })
 
