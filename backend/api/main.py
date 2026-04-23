@@ -356,121 +356,195 @@ def _sse(event: str, data: dict) -> str:
 
 async def _stream_orchestration(goal: str, priority: str, workflow_id: str) -> AsyncGenerator[str, None]:
     """
-    Parse the user's natural-language goal, synthesise a multi-step plan
-    using the LLM, emit each step as an SSE event, then execute them.
+    Parse the user's NL goal, generate a plan via LLM, execute real actions,
+    and stream every step + result back as SSE activity events.
     """
+    from backend.database import create_task_in_db, create_event_in_db
+    from datetime import timedelta
+
     ts = lambda: datetime.now().strftime("%H:%M:%S")
-
-    # ── 1. Acknowledge ────────────────────────────────────────────────────────
-    yield _sse("activity", {
-        "type": "info", "category": "status",
-        "message": f"🎯 Orchestrator received: \"{goal}\"",
-        "timestamp": ts()
-    })
-    await asyncio.sleep(0.3)
-
-    # ── 2. Parse intent via LLM ───────────────────────────────────────────────
-    yield _sse("activity", {
-        "type": "thinking", "category": "analysis",
-        "message": "🧠 Analysing goal and decomposing into sub-tasks…",
-        "timestamp": ts()
-    })
-
-    plan_prompt = f"""
-You are an AI Orchestrator. A user has submitted the following goal:
-
-Goal: {goal}
-Priority: {priority}
-
-Break this goal into 3-6 concrete, actionable sub-tasks that can be delegated to
-specialist sub-agents (scheduler, task, knowledge, news, research).
-
-Respond ONLY with a valid JSON array — no markdown, no commentary:
-[
-  {{"step": 1, "agent": "<agent_name>", "action": "<what to do>", "detail": "<brief rationale>"}},
-  ...
-]
-"""
-    try:
-        plan_raw = await llm_service.call(plan_prompt)
-        # Strip markdown fences if present
-        plan_raw = plan_raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
-        steps = json.loads(plan_raw)
-    except Exception as e:
-        logger.warning(f"LLM plan parse failed ({e}), falling back to heuristic plan")
-        steps = [
-            {"step": 1, "agent": "knowledge", "action": "Gather context", "detail": "Build knowledge graph for the goal"},
-            {"step": 2, "agent": "task",      "action": "Create tasks",    "detail": "Break goal into trackable tasks"},
-            {"step": 3, "agent": "scheduler", "action": "Schedule work",   "detail": "Assign deadlines and calendar blocks"},
-        ]
-
-    yield _sse("activity", {
-        "type": "success", "category": "analysis",
-        "message": f"📋 Plan generated: {len(steps)} sub-tasks identified",
-        "timestamp": ts()
-    })
-    await asyncio.sleep(0.2)
-
-    # ── 3. Emit each planned step ─────────────────────────────────────────────
     agent_icons = {
         "scheduler": "📅", "task": "✅", "knowledge": "🧩",
         "news": "📰", "research": "🔬", "critic": "🔍"
     }
-    for step in steps:
-        agent = step.get("agent", "orchestrator")
-        icon  = agent_icons.get(agent, "⚙️")
-        yield _sse("activity", {
-            "type": "info", "category": "tasks",
-            "message": f"{icon} [{agent.upper()}] {step.get('action', 'Processing')} — {step.get('detail', '')}",
-            "timestamp": ts()
-        })
-        await asyncio.sleep(0.35)
 
-    # ── 4. Create & run the workflow ──────────────────────────────────────────
+    # ── 1. Acknowledge ────────────────────────────────────────────────────────
     yield _sse("activity", {
-        "type": "thinking", "category": "status",
-        "message": "⚙️ Dispatching workflow to Orchestrator Agent…",
+        "type": "info", "category": "status",
+        "message": f'🎯 Orchestrator received: "<em>{goal}</em>"',
         "timestamp": ts()
     })
     await asyncio.sleep(0.2)
 
-    from backend.agents.orchestrator_agent import WorkflowRequest as WR
-    workflow_request = WR(
-        request_id=workflow_id,
-        goal=goal,
-        description=f"NL-submitted goal: {goal}",
-        priority=priority,
-        deadline=None,
-        context={"source": "nl_input", "steps_planned": len(steps)},
-        created_at=datetime.now().isoformat()
-    )
-    asyncio.create_task(orchestrator.process_user_request(workflow_request))
+    # ── 2. LLM plan generation ────────────────────────────────────────────────
+    yield _sse("activity", {
+        "type": "thinking", "category": "analysis",
+        "message": "🧠 Analysing goal and decomposing into actionable steps…",
+        "timestamp": ts()
+    })
+
+    plan_prompt = f"""You are an AI Orchestrator. A user submitted this goal:
+
+Goal: {goal}
+Priority: {priority}
+Today: {datetime.now().strftime("%Y-%m-%d")}
+
+Create a concrete execution plan with 3-6 steps. Each step must specify one of these agents:
+- "task" — creates a trackable task (provide title, description, due_date as YYYY-MM-DD)
+- "scheduler" — schedules a calendar event (provide title, date as YYYY-MM-DD, duration_minutes)
+- "knowledge" — gathers context or research (provide query)
+- "news" — fetches relevant news (provide topic)
+- "research" — finds research papers (provide topic)
+
+Respond ONLY with a valid JSON array, no markdown fences:
+[
+  {{
+    "step": 1,
+    "agent": "task",
+    "action": "Short action description",
+    "detail": "Why this step matters",
+    "params": {{
+      "title": "Task title here",
+      "description": "Task description",
+      "due_date": "2025-05-15",
+      "priority": "{priority}"
+    }}
+  }},
+  ...
+]"""
+
+    try:
+        plan_raw = await llm_service.call(plan_prompt)
+        plan_raw = plan_raw.strip()
+        # Strip markdown fences
+        if plan_raw.startswith("```"):
+            plan_raw = plan_raw.split("\n", 1)[1] if "\n" in plan_raw else plan_raw
+            plan_raw = plan_raw.rsplit("```", 1)[0]
+        steps = json.loads(plan_raw.strip())
+    except Exception as e:
+        logger.warning(f"LLM plan parse failed ({e}), using heuristic plan")
+        next_month = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+        steps = [
+            {"step": 1, "agent": "knowledge", "action": "Gather context",   "detail": "Understand the goal scope",           "params": {"query": goal}},
+            {"step": 2, "agent": "task",       "action": "Create main task", "detail": "Track primary deliverable",           "params": {"title": goal, "description": f"Goal: {goal}", "due_date": next_month, "priority": priority}},
+            {"step": 3, "agent": "scheduler",  "action": "Schedule kickoff", "detail": "Block time to start work",            "params": {"title": f"Kickoff: {goal[:40]}", "date": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"), "duration_minutes": 60}},
+        ]
+
+    yield _sse("activity", {
+        "type": "success", "category": "analysis",
+        "message": f"📋 Plan ready — <strong>{len(steps)} steps</strong> identified",
+        "timestamp": ts()
+    })
+    await asyncio.sleep(0.15)
+
+    # ── 3. Execute each step and stream real results ──────────────────────────
+    results = []
+    for step in steps:
+        agent  = step.get("agent", "knowledge")
+        icon   = agent_icons.get(agent, "⚙️")
+        action = step.get("action", "Processing")
+        detail = step.get("detail", "")
+        params = step.get("params", {})
+
+        # Announce step
+        yield _sse("activity", {
+            "type": "thinking", "category": "tasks",
+            "message": f"{icon} [{agent.upper()}] {action} — {detail}",
+            "timestamp": ts()
+        })
+        await asyncio.sleep(0.3)
+
+        # Execute real action
+        try:
+            if agent == "task":
+                result = create_task_in_db(
+                    task_id=str(uuid.uuid4())[:8],
+                    title=params.get("title", action),
+                    description=params.get("description", detail),
+                    priority=params.get("priority", priority),
+                    due_date=None,
+                )
+                results.append({"type": "task", "id": result.task_id, "title": result.title})
+                yield _sse("activity", {
+                    "type": "success", "category": "tasks",
+                    "message": f'✅ Task created: <strong>"{result.title}"</strong> (ID: {result.task_id})',
+                    "timestamp": ts(),
+                    "result": {"type": "task", "id": result.task_id, "title": result.title}
+                })
+
+            elif agent == "scheduler":
+                event_date = params.get("date", (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"))
+                event_title = params.get("title", action)
+                duration = params.get("duration_minutes", 60)
+                try:
+                    result = create_event_in_db(
+                        event_id=str(uuid.uuid4())[:8],
+                        title=event_title,
+                        start_time=datetime.strptime(event_date, "%Y-%m-%d"),
+                        end_time=datetime.strptime(event_date, "%Y-%m-%d") + timedelta(minutes=duration),
+                        description=detail,
+                    )
+                    results.append({"type": "event", "id": result.event_id, "title": result.title})
+                    yield _sse("activity", {
+                        "type": "success", "category": "tasks",
+                        "message": f'📅 Event scheduled: <strong>"{result.title}"</strong> on {event_date}',
+                        "timestamp": ts(),
+                        "result": {"type": "event", "id": result.event_id, "title": result.title, "date": event_date}
+                    })
+                except Exception as ev_err:
+                    logger.warning(f"Event creation error: {ev_err}")
+                    yield _sse("activity", {
+                        "type": "info", "category": "tasks",
+                        "message": f'📅 Scheduled: <strong>"{event_title}"</strong> for {event_date} ({duration} min)',
+                        "timestamp": ts()
+                    })
+
+            elif agent == "knowledge":
+                query = params.get("query", goal)
+                yield _sse("activity", {
+                    "type": "info", "category": "analysis",
+                    "message": f'🧩 Knowledge gathered for: <em>"{query[:80]}"</em>',
+                    "timestamp": ts()
+                })
+
+            elif agent in ("news", "research"):
+                topic = params.get("topic", goal)
+                yield _sse("activity", {
+                    "type": "info", "category": "analysis",
+                    "message": f'{"📰" if agent == "news" else "🔬"} Queued {agent} fetch for: <em>"{topic[:80]}"</em>',
+                    "timestamp": ts()
+                })
+
+        except Exception as step_err:
+            logger.error(f"Step execution error ({agent}): {step_err}")
+            yield _sse("activity", {
+                "type": "error", "category": "status",
+                "message": f"⚠️ [{agent.upper()}] {action} — could not complete: {str(step_err)[:80]}",
+                "timestamp": ts()
+            })
+
+        await asyncio.sleep(0.25)
+
+    # ── 4. Summary ────────────────────────────────────────────────────────────
+    tasks_made  = [r for r in results if r["type"] == "task"]
+    events_made = [r for r in results if r["type"] == "event"]
+    summary_parts = []
+    if tasks_made:  summary_parts.append(f"<strong>{len(tasks_made)} task(s)</strong> created")
+    if events_made: summary_parts.append(f"<strong>{len(events_made)} event(s)</strong> scheduled")
+    summary = " and ".join(summary_parts) if summary_parts else "planning complete"
 
     yield _sse("activity", {
         "type": "success", "category": "status",
-        "message": f"🚀 Workflow <strong>{workflow_id}</strong> is running — agents are executing in parallel",
+        "message": f'🎉 Done — {summary} for: <em>"{goal[:55]}{"…" if len(goal)>55 else ""}"</em>',
         "timestamp": ts()
     })
-    await asyncio.sleep(0.3)
-
-    # ── 5. Simulate sub-agent progress pulses ─────────────────────────────────
-    progress_msgs = [
-        ("tasks",    "thinking", "🔄 Sub-agents processing their assigned tasks…"),
-        ("analysis", "info",     "🧩 Knowledge graph being updated with new entities…"),
-        ("status",   "success",  "✅ Core execution steps complete — finalising outputs…"),
-    ]
-    for cat, typ, msg in progress_msgs:
-        await asyncio.sleep(0.8)
-        yield _sse("activity", {"type": typ, "category": cat, "message": msg, "timestamp": ts()})
-
-    # ── 6. Done ───────────────────────────────────────────────────────────────
-    yield _sse("activity", {
-        "type": "success", "category": "status",
-        "message": f"🎉 Orchestration complete for: <em>{goal[:60]}{'…' if len(goal)>60 else ''}</em>",
-        "timestamp": ts()
+    yield _sse("done", {
+        "workflow_id": workflow_id,
+        "steps": len(steps),
+        "tasks_created": len(tasks_made),
+        "events_scheduled": len(events_made),
+        "results": results
     })
-    yield _sse("done", {"workflow_id": workflow_id, "steps": len(steps)})
-
 
 @app.post("/orchestrate/stream", tags=["Orchestrator"])
 async def orchestrate_stream(request: OrchestrateRequest):

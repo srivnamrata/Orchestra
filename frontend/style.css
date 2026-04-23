@@ -2144,3 +2144,75 @@ body {
 .nl-submit-btn {
     width: 100%;
 }
+
+/* ── Orchestration Result Card ───────────────────────────────────────────── */
+
+.orchestration-result-card {
+    background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(79,172,254,0.08));
+    border: 1px solid rgba(16,185,129,0.3);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+}
+
+.orc-card-header {
+    font-size: 0.85rem;
+    color: #10b981;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.orc-card-results {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.orc-result-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.84rem;
+}
+
+.orc-result-item:hover {
+    background: rgba(79,172,254,0.1);
+    border-color: rgba(79,172,254,0.3);
+}
+
+.orc-result-icon { font-size: 0.95rem; }
+
+.orc-result-title {
+    flex: 1;
+    color: var(--text-primary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.orc-result-id {
+    font-size: 0.73rem;
+    color: rgba(200,200,220,0.4);
+    font-family: monospace;
+}
+
+.orc-result-arrow {
+    font-size: 0.7rem;
+    color: rgba(79,172,254,0.5);
+}
+
+.orc-card-footer {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}

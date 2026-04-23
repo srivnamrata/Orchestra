@@ -2856,17 +2856,15 @@ async function submitNLGoal() {
                             payload.category
                         );
                     } else if (eventName === 'done') {
-                        // Mark completed
-                        activityFeed.logStream(
-                            `🏁 Stream closed — workflow <strong>${payload.workflow_id}</strong> handed off`,
-                            'success',
-                            'status'
-                        );
+                        // Show result summary card
+                        renderOrchestrationSummary(payload);
                         // Update stat counter
                         const statEl = document.getElementById('stat-workflows');
                         if (statEl && statEl.textContent !== '--') {
                             statEl.textContent = parseInt(statEl.textContent || '0') + 1;
                         }
+                        // Refresh task/event panels
+                        setTimeout(() => { triggerTaskDemo(); }, 800);
                     }
                 } catch (parseErr) {
                     console.warn('[NL stream] JSON parse error:', parseErr, dataLine);
@@ -3074,3 +3072,49 @@ function toggleVoiceInput() {
 
 // Initialise on DOM ready
 // voiceInput.init() is called from the main DOMContentLoaded handler below
+
+// ============================================================================
+// Orchestration Result Cards — shown in activity feed after "done" event
+// ============================================================================
+
+function renderOrchestrationSummary(payload) {
+    const feedDiv = document.getElementById('action-output');
+    if (!feedDiv) return;
+
+    const tasks  = payload.tasks_created   || 0;
+    const events = payload.events_scheduled || 0;
+    const results = payload.results || [];
+
+    if (!results.length) return;
+
+    const card = document.createElement('div');
+    card.className = 'orchestration-result-card stream-new';
+    card.innerHTML = `
+        <div class="orc-card-header">
+            <i class="fa-solid fa-circle-check"></i>
+            Workflow <strong>${payload.workflow_id}</strong> — 
+            ${tasks ? `${tasks} task${tasks>1?'s':''} created` : ''}
+            ${tasks && events ? ' · ' : ''}
+            ${events ? `${events} event${events>1?'s':''} scheduled` : ''}
+        </div>
+        <div class="orc-card-results">
+            ${results.map(r => `
+                <div class="orc-result-item" onclick="switchView('${r.type === 'task' ? 'dashboard' : 'dashboard'}'); switchAgentTab('${r.type === 'task' ? 'task-tab' : 'schedule-tab'}');">
+                    <span class="orc-result-icon">${r.type === 'task' ? '✅' : '📅'}</span>
+                    <span class="orc-result-title">${r.title}</span>
+                    <span class="orc-result-id">#${r.id}</span>
+                    <i class="fa-solid fa-arrow-right orc-result-arrow"></i>
+                </div>
+            `).join('')}
+        </div>
+        <div class="orc-card-footer">
+            <button class="nl-quick" onclick="triggerTaskDemo()">
+                <i class="fa-solid fa-list"></i> View all tasks
+            </button>
+            <button class="nl-quick" onclick="triggerSchedulerDemo()">
+                <i class="fa-solid fa-calendar"></i> View schedule
+            </button>
+        </div>
+    `;
+    feedDiv.prepend(card);
+}
