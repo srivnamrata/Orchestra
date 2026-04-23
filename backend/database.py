@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 # For AlloyDB: postgresql+pg8000://user:password@host:5432/database
 # For local SQLite (development): sqlite:///./productivity.db
 # For PostgreSQL: postgresql://user:password@localhost:5432/database
-DB_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite:///./productivity.db"
-)
+# On Cloud Run the working directory is read-only; use /tmp for SQLite.
+# In production set DATABASE_URL to a real PostgreSQL/AlloyDB connection string.
+_default_sqlite = "sqlite:////tmp/productivity.db"
+DB_URL = os.getenv("DATABASE_URL", _default_sqlite)
 
 # Create engine with appropriate settings
 if "sqlite" in DB_URL:

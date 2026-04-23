@@ -197,6 +197,23 @@ async def root_info():
     }
 
 
+@app.get("/api/debug/db", tags=["Health"])
+async def debug_db():
+    """Debug endpoint: shows DB path, task count, and last 5 tasks"""
+    from backend.database import DB_URL, get_all_tasks
+    import os
+    try:
+        tasks = get_all_tasks(limit=5)
+        return {
+            "db_url": DB_URL,
+            "db_file_exists": os.path.exists(DB_URL.replace("sqlite:////", "/")),
+            "task_count": len(tasks),
+            "last_5_tasks": [{"id": t.task_id, "title": t.title, "priority": t.priority, "created_at": t.created_at.isoformat()} for t in tasks]
+        }
+    except Exception as e:
+        return {"error": str(e), "db_url": DB_URL}
+
+
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Fast health check endpoint (no DB calls)"""
@@ -1491,11 +1508,8 @@ async def list_tasks(limit: int = 100, offset: int = 0, status: Optional[str] = 
             ]
         }
     except Exception as e:
-        logger.warning(f"⚠️ Database error retrieving tasks, using mock data: {e}")
-        # Return mock data instead of error
-        mock_response = await get_mock_tasks()
-        mock_response["status"] = "success (mock)"
-        return mock_response
+        logger.error(f"❌ Database error retrieving tasks: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @app.get("/api/tasks/{task_id}", tags=["Tasks"])
