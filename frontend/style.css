@@ -2102,3 +2102,45 @@ body {
     0%, 100% { transform: scaleY(0.4); opacity: 0.6; }
     50%       { transform: scaleY(1);   opacity: 1; }
 }
+
+/* ── Textarea wrapper + floating mic ─────────────────────────────────────── */
+
+.nl-textarea-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+}
+
+.nl-textarea-wrap .nl-goal-textarea {
+    width: 100%;
+    padding-right: 40px; /* make room for mic button */
+}
+
+.nl-textarea-wrap .nl-mic-btn {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    width: 28px;
+    height: 28px;
+    font-size: 0.78rem;
+    z-index: 2;
+    /* override old flex-shrink */
+    flex-shrink: 0;
+}
+
+/* Remove the old nl-btn-row since we no longer need it */
+.nl-btn-row {
+    display: contents;
+}
+
+/* Controls column: priority on top, Run below */
+.nl-input-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+}
+
+.nl-submit-btn {
+    width: 100%;
+}

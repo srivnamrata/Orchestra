@@ -464,6 +464,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5. Fetch Health Status (non-blocking)
         fetchHealthStatus();
     }, 100);
+
+    setTimeout(() => {
+        console.log('⚙️ Init stage 6: Voice input');
+        // 6. Initialise voice input
+        voiceInput.init();
+    }, 150);
 });
 
 // Helper for UI Console
@@ -3067,11 +3073,4 @@ function toggleVoiceInput() {
 }
 
 // Initialise on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-    voiceInput.init();
-});
-
-// Also init now in case DOMContentLoaded already fired
-if (document.readyState !== 'loading') {
-    voiceInput.init();
-}
+// voiceInput.init() is called from the main DOMContentLoaded handler below

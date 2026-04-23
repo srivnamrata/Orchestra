@@ -154,13 +154,20 @@
                                         <div class="nl-icon-pulse" id="nl-icon-pulse">
                                             <i class="fa-solid fa-microchip-ai"></i>
                                         </div>
-                                        <textarea
-                                            id="nl-goal-input"
-                                            class="nl-goal-textarea"
-                                            placeholder="Tell the Orchestrator what you want to achieve… e.g. 'Plan a product launch for next month' or 'Research recent AI breakthroughs and create a summary task'"
-                                            rows="2"
-                                            onkeydown="nlOrchestratorKeydown(event)"
-                                        ></textarea>
+                                        <!-- Textarea wrapper so mic can float inside it -->
+                                        <div class="nl-textarea-wrap">
+                                            <textarea
+                                                id="nl-goal-input"
+                                                class="nl-goal-textarea"
+                                                placeholder="Tell the Orchestrator what you want to achieve… e.g. 'Plan a product launch for next month' or 'Research recent AI breakthroughs and create a summary task'"
+                                                rows="2"
+                                                onkeydown="nlOrchestratorKeydown(event)"
+                                            ></textarea>
+                                            <!-- Mic floats inside bottom-right of textarea -->
+                                            <button class="nl-mic-btn" id="nl-mic-btn" onclick="toggleVoiceInput()" title="Click to speak">
+                                                <i class="fa-solid fa-microphone" id="nl-mic-icon"></i>
+                                            </button>
+                                        </div>
                                         <div class="nl-input-controls">
                                             <select id="nl-priority" class="nl-priority-select">
                                                 <option value="low">Low</option>
@@ -168,14 +175,9 @@
                                                 <option value="high">High</option>
                                                 <option value="critical">Critical</option>
                                             </select>
-                                            <div class="nl-btn-row">
-                                                <button class="nl-mic-btn" id="nl-mic-btn" onclick="toggleVoiceInput()" title="Click to speak">
-                                                    <i class="fa-solid fa-microphone" id="nl-mic-icon"></i>
-                                                </button>
-                                                <button class="btn btn-primary nl-submit-btn" id="nl-submit-btn" onclick="submitNLGoal()">
-                                                    <i class="fa-solid fa-paper-plane"></i> <span>Run</span>
-                                                </button>
-                                            </div>
+                                            <button class="btn btn-primary nl-submit-btn" id="nl-submit-btn" onclick="submitNLGoal()">
+                                                <i class="fa-solid fa-paper-plane"></i> <span>Run</span>
+                                            </button>
                                         </div>
                                     </div>
                                     <div class="nl-hint-row">
