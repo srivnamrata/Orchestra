@@ -1448,221 +1448,73 @@ async def demonstrate_vibe_check():
 
 @app.post("/demonstrate-news-agent", tags=["Demo"])
 async def demonstrate_news_agent():
-    """
-    🎬 DEMONSTRATION: News Agent in Action
-    
-    Shows the News Agent fetching and summarizing latest technology news
-    and industry breakthroughs relevant to the user's interests.
-    Fetches live data from curated news sources.
-    """
-    import asyncio
-    
-    logger.info("🎬 Demonstrating News Agent capabilities...")
-    
+    """Fetch live tech/AI news from HackerNews, DEV.to, or Reddit ML."""
+    logger.info("📰 News Agent fetching live data...")
     try:
-        # Fetch live news data with timeout
-        try:
-            news_data = await asyncio.wait_for(
-                get_live_news(
-                    query="artificial intelligence OR machine learning OR AI breakthroughs",
-                    max_articles=10
-                ),
-                timeout=8.0
-            )
-        except asyncio.TimeoutError:
-            logger.info("Live news fetch timed out, using curated data")
-            news_data = None
-        
-        # If fetch failed or empty, get curated fallback
-        if not news_data or news_data.get("status") != "ok" or not news_data.get("articles"):
-            logger.info("Using curated news data")
-            news_data = {
-                "status": "ok",
-                "source": "curated",
-                "articles": [
-                    {
-                        "title": "OpenAI Announces GPT-4o: Multimodal AI Model with Enhanced Reasoning",
-                        "description": "OpenAI releases GPT-4o, featuring improved multimodal capabilities for text, image, and audio processing.",
-                        "url": "https://openai.com/gpt-4o"
-                    },
-                    {
-                        "title": "Google DeepMind Unveils AlphaFold 3 for Protein Structure Prediction",
-                        "description": "Breakthrough in protein folding prediction accelerates drug discovery and biological research.",
-                        "url": "https://www.deepmind.google/"
-                    },
-                    {
-                        "title": "Meta Released Llama 3: Open Source Large Language Model",
-                        "description": "Meta's new LLM offers competitive performance with open-source accessibility.",
-                        "url": "https://www.meta.com/ai/"
-                    },
-                    {
-                        "title": "NVIDIA Announces Next-Gen H200 Tensor GPUs for AI Inference",
-                        "description": "New GPU architecture delivers 6x faster inference for large language models.",
-                        "url": "https://www.nvidia.com/"
-                    },
-                    {
-                        "title": "Anthropic's Claude 3 Outperforms GPT-4 on Reasoning Tasks",
-                        "description": "New Claude version shows superior performance on complex analytical tasks.",
-                        "url": "https://www.anthropic.com/"
-                    },
-                    {
-                        "title": "Stanford Researchers Develop AI System for Medical Diagnosis",
-                        "description": "New AI model achieves 95% accuracy in radiological image analysis.",
-                        "url": "https://www.stanford.edu/"
-                    }
-                ]
-            }
-        
-        articles = news_data.get("articles", [])
-        
-        return {
-            "message": "🗞️ News Agent demonstration completed",
-            "agent": "news_agent",
-            "demonstration": "Weekly Tech Headlines Fetcher",
-            "topics_covered": ["technology breakthroughs", "AI advancements", "business trends"],
-            "articles_fetched": len(articles),
-            "news_summary": "Latest breakthroughs in AI, machine learning, and enterprise technology",
-            "sample_headlines": [article.get("title", "") for article in articles[:3]],
-            "additional_headlines": [article.get("title", "") for article in articles[3:6]],
-            "status": f"✅ Fetched {len(articles)} articles from {news_data.get('source', 'news sources')}",
-            "articles": articles  # Include full article data for frontend
-        }
-    
-    except Exception as e:
-        logger.error(f"News agent error: {e}")
-        # Return reliable mock data as fallback
-        return {
-            "message": "🗞️ News Agent demonstration completed",
-            "agent": "news_agent",
-            "demonstration": "Weekly Tech Headlines Fetcher",
-            "topics_covered": ["technology breakthroughs", "AI advancements", "business trends"],
-            "articles_fetched": 6,
-            "news_summary": "Latest breakthroughs in AI, machine learning, and enterprise technology",
-            "sample_headlines": [
-                "OpenAI releases new multimodal AI model with 95% accuracy on benchmarks",
-                "Google DeepMind announces breakthrough in protein structure prediction for drug discovery",
-                "Tesla reports 40% improvement in autonomous driving safety metrics"
-            ],
-            "additional_headlines": [
-                "Microsoft expands AI copilot integration across enterprise suite",
-                "Anthropic raises $500M for constitutional AI research",
-                "NVIDIA announces next-gen tensor processing units for enterprise AI"
-            ],
-            "status": "✅ Using curated news highlights",
-            "articles": []
-        }
+        news_data = await asyncio.wait_for(
+            get_live_news(
+                query="artificial intelligence machine learning LLM agents",
+                max_articles=10
+            ),
+            timeout=15.0
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Live news timed out — using curated fallback")
+        from backend.services.live_data_fetcher import LiveDataFetcher
+        news_data = LiveDataFetcher()._curated_news()
+
+    articles     = news_data.get("articles", [])
+    source_label = news_data.get("source", "live")
+
+    return {
+        "message":            f"📰 News Agent fetched {len(articles)} articles from {source_label}",
+        "agent":              "news_agent",
+        "demonstration":      "Live Tech & AI Headlines",
+        "topics_covered":     ["AI breakthroughs", "LLMs", "machine learning", "tech industry"],
+        "articles_fetched":   len(articles),
+        "news_summary":       f"Latest AI and technology headlines — source: {source_label}",
+        "sample_headlines":   [a.get("title", "") for a in articles[:3]],
+        "additional_headlines":[a.get("title", "") for a in articles[3:6]],
+        "status":             f"✅ {len(articles)} articles from {source_label}",
+        "articles":           articles,
+        "source":             source_label,
+    }
 
 
 @app.post("/demonstrate-research-agent", tags=["Demo"])
 async def demonstrate_research_agent():
-    """
-    🎬 DEMONSTRATION: Research Agent in Action
-    
-    Shows the Research Agent fetching and analyzing academic research papers
-    and technical publications on AI/ML/Data Science topics from arXiv.
-    """
-    import asyncio
-    
-    logger.info("🎬 Demonstrating Research Agent capabilities...")
-    
+    """Fetch live research papers from arXiv or Semantic Scholar."""
+    logger.info("🔬 Research Agent fetching live papers...")
     try:
-        # Fetch live research papers from arXiv with timeout
-        try:
-            research_data = await asyncio.wait_for(
-                get_live_research(
-                    query="deep learning OR transformer OR neural network OR large language model",
-                    max_papers=10
-                ),
-                timeout=8.0
-            )
-        except asyncio.TimeoutError:
-            logger.info("Live research fetch timed out, using curated data")
-            research_data = None
-        
-        # If fetch failed or empty, get curated fallback
-        if not research_data or research_data.get("status") != "ok" or not research_data.get("papers"):
-            logger.info("Using curated research data")
-            research_data = {
-                "status": "ok",
-                "source": "curated",
-                "papers": [
-                    {
-                        "title": "Mixture of Experts Scaling Laws in Large Language Models",
-                        "summary": "Novel scaling laws for mixture of experts architectures showing 3x efficiency gains.",
-                        "authors": ["Chen, A.", "Wang, B.", "Smith, C."],
-                        "url": "https://arxiv.org/abs/2404.12345"
-                    },
-                    {
-                        "title": "Vision Transformers with Efficient Attention Mechanisms",
-                        "summary": "Proposes linear attention mechanism for vision transformers reducing memory by 50%.",
-                        "authors": ["Zhang, D.", "Lee, K."],
-                        "url": "https://arxiv.org/abs/2404.12346"
-                    },
-                    {
-                        "title": "Multimodal Foundation Models for Embodied AI",
-                        "summary": "Training procedure for multimodal models that understand text, images, and video sequences.",
-                        "authors": ["Kumar, R.", "Patel, S.", "Brown, L."],
-                        "url": "https://arxiv.org/abs/2404.12347"
-                    },
-                    {
-                        "title": "Efficient Fine-tuning of Large Language Models",
-                        "summary": "Parameter-efficient adapters for fine-tuning achieving 95% of full model performance.",
-                        "authors": ["Johnson, P.", "Williams, Q."],
-                        "url": "https://arxiv.org/abs/2404.12348"
-                    },
-                    {
-                        "title": "Graph Neural Networks for Molecular Generation",
-                        "summary": "GNN-based approach for drug discovery achieving 87% hit rate in molecular generation.",
-                        "authors": ["Martinez, E.", "Garcia, F."],
-                        "url": "https://arxiv.org/abs/2404.12349"
-                    },
-                    {
-                        "title": "Federated Learning with Differential Privacy",
-                        "summary": "Framework for privacy-preserving distributed training with formal privacy guarantees.",
-                        "authors": ["Singh, A.", "Chen, B.", "Davis, C.", "Evans, D."],
-                        "url": "https://arxiv.org/abs/2404.12350"
-                    }
-                ]
-            }
-        
-        papers = research_data.get("papers", [])
-        
-        return {
-            "message": "📚 Research Agent demonstration completed",
-            "agent": "research_agent",
-            "demonstration": "Weekly Research Highlights",
-            "research_areas": ["AI", "ML", "Deep Learning", "NLP", "Computer Vision"],
-            "papers_analyzed": len(papers),
-            "research_summary": "Trending research in transformer architectures, multimodal AI, and efficient language models",
-            "trending_topics": [paper.get("title", "") for paper in papers[:3]],
-            "key_findings": [paper.get("summary", "") for paper in papers[:3]],
-            "status": f"✅ Fetched {len(papers)} papers from {research_data.get('source', 'arXiv')}",
-            "papers": papers  # Include full paper data for frontend
-        }
-    
-    except Exception as e:
-        logger.error(f"Research agent error: {e}")
-        # Return reliable mock data as fallback
-        return {
-            "message": "📚 Research Agent demonstration completed",
-            "agent": "research_agent",
-            "demonstration": "Weekly Research Highlights",
-            "research_areas": ["AI", "ML", "Deep Learning", "NLP", "Computer Vision"],
-            "papers_analyzed": 6,
-            "research_summary": "Trending research in transformer architectures, multimodal AI, and efficient language models",
-            "trending_topics": [
-                "Vision Transformers (ViT) for medical imaging",
-                "Efficient Fine-tuning Methods for Large Language Models",
-                "Multimodal Foundation Models and Their Applications"
-            ],
-            "key_findings": [
-                "New attention mechanism reduces computational complexity by 60% while maintaining accuracy",
-                "Cross-modal embeddings improve zero-shot learning transfer by 35%",
-                "Parameter-efficient methods enable model adaptation with less than 1% additional parameters"
-            ],
-            "status": "✅ Using curated research highlights",
-            "papers": []
-        }
+        research_data = await asyncio.wait_for(
+            get_live_research(
+                query="large language models agents reasoning alignment",
+                max_papers=10
+            ),
+            timeout=15.0
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Live research timed out — using curated fallback")
+        from backend.services.live_data_fetcher import LiveDataFetcher
+        research_data = LiveDataFetcher()._curated_research()
+
+    papers       = research_data.get("papers", [])
+    source_label = research_data.get("source", "live")
+
+    return {
+        "message":          f"🔬 Research Agent fetched {len(papers)} papers from {source_label}",
+        "agent":            "research_agent",
+        "demonstration":    "Live AI/ML Research Papers",
+        "categories":       ["cs.AI", "cs.LG", "cs.CL", "cs.CV", "cs.RO"],
+        "articles_fetched": len(papers),
+        "papers_analyzed":  len(papers),
+        "research_summary": f"Latest AI/ML research — source: {source_label}",
+        "sample_papers":    [p.get("title", "") for p in papers[:3]],
+        "status":           f"✅ {len(papers)} papers from {source_label}",
+        "articles":         papers,
+        "papers":           papers,
+        "source":           source_label,
+    }
 
 
 @app.post("/demonstrate-scheduler-agent", tags=["Demo"])

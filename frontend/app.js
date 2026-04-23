@@ -1039,144 +1039,112 @@ function displayAgentContent(agentName, agentTitle, icon, contentData) {
     document.getElementById('stop-audio-btn').style.display = 'inline-flex';
 }
 
-// Display news articles in card format
+// Display news articles in card format — handles both new (articles[]) and legacy formats
 function displayNewsCards(container, data) {
-    if (!data.sample_headlines || data.sample_headlines.length === 0) {
+    // Prefer full article objects; fall back to headline strings
+    const articles = data.articles && data.articles.length > 0
+        ? data.articles
+        : (data.sample_headlines || []).map(h => ({ title: h }));
+
+    if (!articles.length) {
         container.innerHTML = '<div class="empty-state">No news articles available</div>';
         return;
     }
-    
-    // Display first headline featured
-    if (data.sample_headlines[0]) {
-        const firstArticle = {
-            title: data.sample_headlines[0],
-            source: data.status || "NewsAPI",
-            date: new Date().toLocaleDateString(),
-            summary: `${data.news_summary || "Latest technology news"}`
-        };
-        
-        const card = createNewsCard(firstArticle, true);
+
+    articles.forEach((article, idx) => {
+        const card = createNewsCard(article, idx === 0);
         container.appendChild(card);
-    }
-    
-    // Display additional headlines
-    if (data.additional_headlines && data.additional_headlines.length > 0) {
-        data.additional_headlines.forEach((headline, idx) => {
-            const article = {
-                title: headline,
-                source: "NewsAPI",
-                date: new Date().toLocaleDateString(),
-                summary: "Technology and AI news headline"
-            };
-            const card = createNewsCard(article, false);
-            container.appendChild(card);
-        });
-    }
+    });
 }
 
-// Create individual news card
+// Create individual news card — handles HackerNews, DEV.to, Reddit, and legacy formats
 function createNewsCard(article, isFeatured = false) {
     const card = document.createElement('div');
     card.className = `article-card ${isFeatured ? 'featured' : ''}`;
-    
-    const summary = article.summary || "Breaking technology news";
-    const truncatedSummary = summary.substring(0, 150) + (summary.length > 150 ? "..." : "");
-    
+
+    // Normalise fields across all sources
+    const title       = article.title || 'Untitled';
+    const summary     = article.description || article.summary || article.content || 'No description available.';
+    const truncated   = summary.length > 200 ? summary.substring(0, 200) + '…' : summary;
+    const url         = article.url || article.link || '#';
+    const sourceName  = (article.source && (article.source.name || article.source)) || 'News';
+    const pubDate     = article.publishedAt || article.published_at || article.created_at || '';
+    const dateLabel   = pubDate ? new Date(pubDate).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '';
+    const safeTitle   = title.replace(/'/g, "\'").replace(/"/g, '&quot;');
+
     card.innerHTML = `
         <div class="article-card-header">
-            <div>
+            <div style="flex:1;">
                 <div class="article-title ${isFeatured ? 'featured' : ''}">
-                    ${isFeatured ? '📰 ' : ''}${article.title}
+                    ${isFeatured ? '📰 ' : ''}${title}
                 </div>
                 <div class="article-card-meta">
-                    <span class="source-badge">${article.source}</span>
-                    <span class="published-date">
-                        <i class="fa-solid fa-calendar"></i> ${article.date}
-                    </span>
+                    <span class="source-badge">${sourceName}</span>
+                    ${dateLabel ? `<span class="published-date"><i class="fa-solid fa-calendar"></i> ${dateLabel}</span>` : ''}
                 </div>
             </div>
         </div>
-        <div class="article-summary" data-full="${summary}">
-            ${truncatedSummary}
-            ${summary.length > 150 ? '<button class="read-more-btn" onclick="toggleReadMore(this)">Read more</button>' : ''}
-        </div>
+        <div class="article-summary">${truncated}</div>
         <div class="article-actions">
-            <button class="action-btn" onclick="listenArticle('${article.title}')">
+            <button class="action-btn" onclick="listenArticle('${safeTitle}')">
                 <i class="fa-solid fa-volume-high"></i> Listen
             </button>
-            <button class="action-btn action-btn--link" onclick="openArticleLink()">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i> Source
+            <button class="action-btn action-btn--link" onclick="window.open('${url}','_blank')">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Read
             </button>
-            <button class="action-btn action-btn--save" onclick="saveArticle('${article.title}')">
+            <button class="action-btn action-btn--save" onclick="saveArticle('${safeTitle}')">
                 <i class="fa-solid fa-bookmark"></i> Save
             </button>
         </div>
     `;
-    
     return card;
 }
 
-// Display research articles in card format
+// Display research papers in card format
 function displayResearchCards(container, data) {
-    if (!data.trending_topics || data.trending_topics.length === 0) {
+    // Support both new (papers[]) and legacy (trending_topics) formats
+    const papers = data.papers || data.articles || [];
+
+    if (papers.length === 0) {
         container.innerHTML = '<div class="empty-state">No research papers available</div>';
         return;
     }
-    
-    // Display key findings as featured section
-    if (data.key_findings && data.key_findings.length > 0) {
-        const finding = data.key_findings[0];
+
+    papers.forEach((paper, idx) => {
         const card = document.createElement('div');
-        card.className = 'article-card featured';
+        card.className = `article-card ${idx === 0 ? 'featured' : ''}`;
+
+        const authors   = Array.isArray(paper.authors) ? paper.authors.join(', ') : (paper.authors || '');
+        const pubDate   = paper.published ? new Date(paper.published).toLocaleDateString('en-IN', {year:'numeric',month:'short',day:'numeric'}) : '';
+        const sourceLabel = (paper.source || data.source || 'arXiv').replace('_',' ').toUpperCase();
+        const paperUrl  = paper.url || paper.pdf_url || '#';
+        const category  = paper.category || 'cs.AI';
+        const safeTitle = (paper.title || '').replace(/'/g, "\'");
+
         card.innerHTML = `
             <div class="article-card-header">
-                <div>
-                    <div class="article-title featured">
-                        🔬 ${data.trending_topics[0] || "Latest AI Research"}
+                <div style="flex:1;">
+                    <div class="article-title ${idx === 0 ? 'featured' : ''}">
+                        🔬 ${paper.title || 'Untitled'}
                     </div>
                     <div class="article-card-meta">
-                        <span class="source-badge">arXiv</span>
-                        <span class="published-date">
-                            <i class="fa-solid fa-book"></i> Research Paper
-                        </span>
+                        <span class="source-badge">${sourceLabel}</span>
+                        <span class="source-badge" style="background:rgba(167,139,250,0.2);color:#a78bfa;">${category}</span>
+                        ${pubDate ? `<span class="published-date"><i class="fa-solid fa-calendar"></i> ${pubDate}</span>` : ''}
                     </div>
                 </div>
             </div>
-            <div class="article-summary">
-                ${finding}
-            </div>
+            ${authors ? `<div style="font-size:0.77rem;color:#888;margin-bottom:6px;padding:0 2px;">👤 ${authors}</div>` : ''}
+            <div class="article-summary">${paper.summary || paper.description || 'No abstract available.'}</div>
             <div class="article-actions">
-                <button class="action-btn" onclick="listenArticle('${data.trending_topics[0]}')">
+                <button class="action-btn" onclick="listenArticle('${safeTitle}')">
                     <i class="fa-solid fa-volume-high"></i> Listen
                 </button>
-                <button class="action-btn action-btn--link" onclick="openArticleLink()">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> ArXiv
+                <button class="action-btn action-btn--link" onclick="window.open('${paperUrl}','_blank')">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> ${sourceLabel === 'ARXIV' ? 'arXiv' : 'View'}
                 </button>
-                <button class="action-btn action-btn--save" onclick="saveArticle('${data.trending_topics[0]}')">
-                    <i class="fa-solid fa-bookmark"></i> Save
-                </button>
-            </div>
-        `;
-        container.appendChild(card);
-    }
-    
-    // Display other topics
-    data.trending_topics.slice(1, 5).forEach((topic, idx) => {
-        const card = document.createElement('div');
-        card.className = 'article-card';
-        card.innerHTML = `
-            <div class="article-title">📊 ${topic}</div>
-            <div class="article-card-meta">
-                <span class="source-badge">arXiv</span>
-            </div>
-            <div class="article-actions">
-                <button class="action-btn" onclick="listenArticle('${topic}')">
-                    <i class="fa-solid fa-volume-high"></i> Listen
-                </button>
-                <button class="action-btn action-btn--link" onclick="openArticleLink()">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> ArXiv
-                </button>
-                <button class="action-btn action-btn--save" onclick="saveArticle('${topic}')">
+                ${paper.pdf_url ? `<button class="action-btn" onclick="window.open('${paper.pdf_url}','_blank')"><i class="fa-solid fa-file-pdf"></i> PDF</button>` : ''}
+                <button class="action-btn action-btn--save" onclick="saveArticle('${safeTitle}')">
                     <i class="fa-solid fa-bookmark"></i> Save
                 </button>
             </div>
@@ -2323,96 +2291,65 @@ async function triggerDebateDemo() {
 }
 
 async function triggerNewsDemo() {
-    appendLog('🗞️ Fetching Latest Technology News Headlines...', 'info');
-    
+    appendLog('📰 Fetching live tech & AI headlines…', 'info');
     try {
-        const res = await fetch('/demonstrate-news-agent', { method: 'POST' });
+        const res  = await fetch('/demonstrate-news-agent', { method: 'POST' });
         const data = await res.json();
-        
-        // Check if real or mock data
-        const isRealData = data.status && data.status.includes("successfully queried");
-        const dataSource = isRealData ? "📡 Real NewsAPI" : "📋 Fallback (Curated)";
-        
-        appendLog(`${dataSource} Response:` + formatJSON(data), 'success');
-        
-        // Display in right panel
-        displayAgentContent('news', 'News Agent - Tech Headlines', 'fa-newspaper', data);
-        
-        // Show summary in console
-        if (data.news_summary) {
-            appendLog(`📰 Summary: ${data.news_summary}`, 'info');
-        }
-        if (data.articles_fetched) {
-            appendLog(`✅ Fetched ${data.articles_fetched} articles from ${dataSource}`, 'success');
-        }
-        
-        // Display sample headlines
-        if (data.sample_headlines && data.sample_headlines.length > 0) {
-            appendLog('📰 Top Headlines:', 'info');
-            data.sample_headlines.forEach(headline => {
-                appendLog(`  • ${headline}`, 'info');
-            });
-        }
-        
-        // Display additional headlines
-        if (data.additional_headlines && data.additional_headlines.length > 0) {
-            appendLog('📰 More Headlines:', 'info');
-            data.additional_headlines.forEach(headline => {
-                appendLog(`  • ${headline}`, 'info');
-            });
-        }
+
+        const source   = data.source || 'live';
+        const articles = data.articles || [];
+        const srcIcon  = source === 'hackernews' ? '📡 Hacker News' :
+                         source === 'devto'       ? '📡 DEV Community' :
+                         source === 'reddit'      ? '📡 Reddit ML' :
+                         source === 'curated'     ? '📋 Curated' : `📡 ${source}`;
+
+        appendLog(`${srcIcon}: ${articles.length} article(s) fetched`, 'success');
+        if (data.news_summary) appendLog(`📰 ${data.news_summary}`, 'info');
+
+        articles.slice(0, 5).forEach((a, i) => {
+            appendLog(`  ${i+1}. ${a.title || a.name || ''}`, 'info');
+        });
+
+        // Pass full article objects to the right panel
+        displayAgentContent('news', `📰 Live Tech Headlines (${articles.length} — ${source})`, 'fa-newspaper', {
+            articles_fetched: articles.length,
+            articles:         articles,
+            source:           source,
+        });
+
     } catch (e) {
         appendLog('Error fetching news: ' + e.message, 'error');
     }
 }
 
 async function triggerResearchDemo() {
-    appendLog('📚 Fetching Latest AI/ML Research Papers...', 'info');
-    
+    appendLog('🔬 Fetching live AI/ML research papers…', 'info');
     try {
-        const res = await fetch('/demonstrate-research-agent', { method: 'POST' });
+        const res  = await fetch('/demonstrate-research-agent', { method: 'POST' });
         const data = await res.json();
-        
-        // Check if real or mock data
-        const isRealData = data.status && data.status.includes("successfully queried");
-        const dataSource = isRealData ? "📡 Real ArXiv API" : "📋 Fallback (Curated)";
-        
-        appendLog(`${dataSource} Response:` + formatJSON(data), 'success');
-        
-        // Display in right panel
-        displayAgentContent('research', 'Research Agent - AI/ML Papers', 'fa-book', data);
-        
-        // Show summary in console
-        if (data.research_summary) {
-            appendLog(`📖 Summary: ${data.research_summary}`, 'info');
-        }
-        if (data.papers_analyzed) {
-            appendLog(`✅ Analyzed ${data.papers_analyzed} research papers from ${dataSource}`, 'success');
-        }
-        
-        // Display trending topics
-        if (data.trending_topics && data.trending_topics.length > 0) {
-            appendLog('📈 Trending Research Topics:', 'info');
-            data.trending_topics.forEach(topic => {
-                appendLog(`  • ${topic}`, 'info');
-            });
-        }
-        
-        // Display key findings
-        if (data.key_findings && data.key_findings.length > 0) {
-            appendLog('🔍 Key Research Findings:', 'info');
-            data.key_findings.forEach(finding => {
-                appendLog(`  • ${finding}`, 'info');
-            });
-        }
-        
-        // Display additional papers
-        if (data.additional_papers && data.additional_papers.length > 0) {
-            appendLog('📄 Featured Papers:', 'info');
-            data.additional_papers.forEach(paper => {
-                appendLog(`  • ${paper}`, 'info');
-            });
-        }
+
+        const source  = data.source || 'live';
+        const papers  = data.papers || data.articles || [];
+        const srcIcon = source === 'arxiv' ? '📡 arXiv' :
+                        source === 'semantic_scholar' ? '📡 Semantic Scholar' :
+                        source === 'curated' ? '📋 Curated' : `📡 ${source}`;
+
+        appendLog(`${srcIcon}: ${papers.length} paper(s) fetched`, 'success');
+
+        if (data.research_summary) appendLog(`📖 ${data.research_summary}`, 'info');
+
+        papers.slice(0, 5).forEach((p, i) => {
+            const authors = Array.isArray(p.authors) ? p.authors.slice(0,2).join(', ') : '';
+            appendLog(`  ${i+1}. ${p.title}${authors ? ' — ' + authors : ''}`, 'info');
+        });
+
+        // Pass papers to the right panel
+        displayAgentContent('research', `🔬 AI/ML Research (${papers.length} papers — ${source})`, 'fa-book', {
+            papers_analyzed: papers.length,
+            papers:          papers,
+            source:          source,
+        });
+
     } catch (e) {
         appendLog('Error fetching research: ' + e.message, 'error');
     }
