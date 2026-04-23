@@ -555,6 +555,17 @@ Respond ONLY with a valid JSON array, no markdown fences:
         "message": f'🎉 Done — {summary} for: <em>"{goal[:55]}{"…" if len(goal)>55 else ""}"</em>',
         "timestamp": ts()
     })
+    # Save to workflow history for audit trail
+    try:
+        from backend.database import save_workflow_history
+        save_workflow_history(
+            workflow_id=workflow_id, goal=goal, priority=priority,
+            steps_count=len(steps), tasks_created=len(tasks_made),
+            events_created=len(events_made), source="voice" if len(goal) < 100 else "text",
+        )
+    except Exception as wh_err:
+        logger.warning(f"Workflow history save failed: {wh_err}")
+
     yield _sse("done", {
         "workflow_id": workflow_id,
         "steps": len(steps),
