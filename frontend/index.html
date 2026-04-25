@@ -1488,7 +1488,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
   <!-- Goal input -->
   <div class="sidebar-goal">
     <div class="goal-box">
-      <textarea class="goal-input" id="goalInput"
+      <textarea class="goal-input" id="nl-goal-input"
         placeholder="Submit a goal to the Orchestrator…"
         oninput="autoExpandGoal(this); updateGoalMeta(this)"></textarea>
       <div class="goal-meta" id="goalMeta">
@@ -1502,8 +1502,14 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
           <button class="pp" onclick="setPriority(this)">High</button>
           <button class="pp p-crit" onclick="setPriority(this)">Crit</button>
         </div>
-        <button class="goal-mic" title="Voice input"><span class="ms sm">mic</span></button>
-        <button class="goal-run" onclick="submitGoal()"><span class="ms sm">play_arrow</span> Run</button>
+        <button class="goal-mic" title="Voice input" id="nl-mic-btn"><span class="ms sm">mic</span></button>
+        <button class="goal-run" id="nl-submit-btn" onclick="submitGoal()"><span class="ms sm">play_arrow</span> Run</button>
+        <select id="nl-priority" style="display:none">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
       </div>
     </div>
     <div class="quick-chips">
@@ -1575,7 +1581,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
         <span class="ms icon-sun">light_mode</span>
         <span class="ms icon-moon">dark_mode</span>
       </button>
-      <button class="tb-fab" onclick="document.getElementById('goalInput').focus()">
+      <button class="tb-fab" onclick="document.getElementById('nl-goal-input').focus()">
         <span class="ms sm">add</span> New Goal
       </button>
     </div>
@@ -1585,7 +1591,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
 
     <!-- Greeting -->
     <div class="greeting anim a1">
-      <div class="g-dots">
+      <div class="g-dots" id="nl-icon-pulse">
         <div class="g-dot-r" style="background:#4285f4"></div><div class="g-dot-r" style="background:#ea4335"></div>
         <div class="g-dot-r" style="background:#fbbc04"></div><div class="g-dot-r" style="background:#34a853"></div>
         <div class="g-dot-r" style="background:#ea4335"></div><div class="g-dot-r" style="background:#4285f4"></div>
@@ -1749,6 +1755,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
             </div>
             <div class="feed-hint">Click any entry to explain reasoning</div>
           </div>
+          <div class="feed-body" id="action-output" style="display:none"></div>
           <div class="feed-body" id="feed"></div>
         </div>
 
@@ -2032,7 +2039,15 @@ function filterFeed(tag,btn){feedFilter=tag;document.querySelectorAll('.feed-tab
 renderFeed();
 
 // ── Priority pills (sidebar) ──
-function setPriority(btn){document.querySelectorAll('.pp').forEach(b=>b.classList.remove('active','p-crit'));btn.classList.add('active');if(btn.textContent==='Crit')btn.classList.add('p-crit');}
+function setPriority(btn){
+  document.querySelectorAll('.pp').forEach(b=>b.classList.remove('active','p-crit'));
+  btn.classList.add('active');
+  if(btn.textContent==='Crit') btn.classList.add('p-crit');
+  // Keep hidden select in sync so submitNLGoal() reads the right value
+  const map = {Low:'low', Med:'medium', High:'high', Crit:'critical'};
+  const sel = document.getElementById('nl-priority');
+  if(sel) sel.value = map[btn.textContent.trim()] || 'medium';
+}
 
 // ── Goal input: auto-expand + char feedback ──
 const GOAL_MAX = 500;
@@ -2147,22 +2162,63 @@ setTimeout(() => {
 }, 1200);
 
 // Goal
-function setGoal(t){const i=document.getElementById('goalInput');i.value=t;i.focus();}
+function setGoal(t){const i=document.getElementById('nl-goal-input');i.value=t;i.focus();}
 function submitGoal(){
-  const inp=document.getElementById('goalInput'),val=inp.value.trim();if(!val)return;
+  // Delegate to app.js's real streaming implementation
+  if(typeof submitNLGoal === 'function'){
+    // Show action-output div so stream entries are visible
+    const ao = document.getElementById('action-output');
+    if(ao) ao.style.display = '';
+    submitNLGoal();
+    return;
+  }
+  // Fallback if app.js not loaded
+  const inp=document.getElementById('nl-goal-input'),val=inp.value.trim();if(!val)return;
   const n=new Date(),t=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
   feedData.unshift({time:t,agent:'YOU',color:'var(--md-on-surface)',cbg:'var(--md-surface-1)',text:val,tag:'tasks'});
   feedData.splice(8);feedFilter='all';document.querySelectorAll('.feed-tab').forEach((b,i)=>b.classList.toggle('active',i===0));renderFeed();
-  setTimeout(()=>{feedData.unshift({time:t,agent:'ORCHESTRATOR',color:'var(--g-green)',cbg:'var(--g-green-light)',text:`Received: <span class="f-hl" style="color:var(--g-green)">"${val}"</span>. Analyzing and assigning agents…`,tag:'status'});renderFeed();},900);
   inp.value='';
 }
 
-// Demo buttons
-function runDemo(type){
-  const msgs={vibe:{agent:'CRITIC',color:'var(--g-amber)',cbg:'var(--g-amber-light)',text:'Vibe Check started. Evaluating goal alignment across all active workflows…'},debate:{agent:'ORCHESTRATOR',color:'var(--g-green)',cbg:'var(--g-green-light)',text:'Debate initiated. Orchestrator vs Critic — arguing best strategy for UI Redesign…'},critic:{agent:'CRITIC',color:'var(--g-amber)',cbg:'var(--g-amber-light)',text:'Critic Replan running. Scanning for inefficiencies across workflow graph…'},scan:{agent:'AUDITOR',color:'var(--g-teal)',cbg:'var(--g-teal-light)',text:'Proactive scan started. Cross-referencing tasks, calendar, GitHub and email…'}};
-  const m=msgs[type];if(!m)return;
+// Demo buttons — call real backend endpoints, fall back to feed message
+function _feedMsg(agent,color,cbg,text){
   const n=new Date(),t=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
-  feedData.unshift({time:t,agent:m.agent,color:m.color,cbg:m.cbg,text:m.text,tag:'status'});feedFilter='all';document.querySelectorAll('.feed-tab').forEach((b,i)=>b.classList.toggle('active',i===0));renderFeed();
+  feedData.unshift({time:t,agent,color,cbg,text,tag:'status'});
+  feedFilter='all';document.querySelectorAll('.feed-tab').forEach((b,i)=>b.classList.toggle('active',i===0));
+  renderFeed();
+}
+function runDemo(type){
+  if(type==='critic'){
+    _feedMsg('CRITIC','var(--g-amber)','var(--g-amber-light)','Critic Replan running — fetching tasks from backend…');
+    fetch('/demonstrate-critic-agent',{method:'POST'})
+      .then(r=>r.json())
+      .then(d=>{
+        const txt = d.critique || d.expected_action || 'Critic analysis complete.';
+        _feedMsg('CRITIC','var(--g-amber)','var(--g-amber-light)', txt);
+      })
+      .catch(()=>_feedMsg('CRITIC','var(--g-amber)','var(--g-amber-light)','Critic: backend unavailable.'));
+  } else if(type==='vibe'){
+    _feedMsg('AUDITOR','var(--g-teal)','var(--g-teal-light)','Vibe Check running — evaluating goal alignment…');
+    fetch('/demonstrate-vibe-check',{method:'POST'})
+      .then(r=>r.json())
+      .then(d=>{
+        const s = d.scenarios_tested;
+        const txt = s ? `Vibe Check: ${s[0].name} → ${s[0].risk_level} risk · ${s[1].name} → ${s[1].risk_level} risk` : 'Vibe Check complete.';
+        _feedMsg('AUDITOR','var(--g-teal)','var(--g-teal-light)', txt);
+      })
+      .catch(()=>_feedMsg('AUDITOR','var(--g-teal)','var(--g-teal-light)','Vibe Check: backend unavailable.'));
+  } else if(type==='debate'){
+    _feedMsg('ORCHESTRATOR','var(--g-green)','var(--g-green-light)','Agent Debate initiated — Orchestrator vs Critic…');
+    fetch('/debate/initiate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic:'Optimal workflow strategy',agents:['orchestrator','critic']})})
+      .then(r=>r.json())
+      .then(d=>{
+        const txt = d.message || d.winner ? `Debate complete — winner: ${d.winner}` : 'Debate complete.';
+        _feedMsg('ORCHESTRATOR','var(--g-green)','var(--g-green-light)', txt);
+      })
+      .catch(()=>_feedMsg('ORCHESTRATOR','var(--g-green)','var(--g-green-light)','Debate: backend unavailable.'));
+  } else if(type==='scan'){
+    runScan();
+  }
 }
 
 // Live Reasoning Trace
@@ -2254,7 +2310,24 @@ function reviewBn(btn,source){btn.textContent='✓ Reviewing…';btn.style.backg
 // Intelligence tabs
 function switchIntel(tab,btn){document.querySelectorAll('.intel-pane').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.intel-tab').forEach(t=>t.classList.remove('active'));document.getElementById('pane-'+tab).classList.add('active');btn.classList.add('active');}
 function playAudio(){const btn=event.target.closest('button');btn.textContent='⏸ Playing…';setTimeout(()=>btn.innerHTML='<span class="ms sm">headphones</span> Audio Summary',3000);}
-function fetchIntel(){const btn=event.target.closest('button');btn.textContent='Fetching…';btn.style.opacity='0.6';setTimeout(()=>{btn.innerHTML='<span class="ms sm">refresh</span> Fetch Latest';btn.style.opacity='1';},1800);}
+function fetchIntel(){
+  const btn=event.target.closest('button');
+  const activePane=document.querySelector('.intel-pane.active');
+  const tab=activePane ? activePane.id.replace('pane-','') : 'news';
+  btn.innerHTML='<span class="ms sm">sync</span> Fetching…';btn.disabled=true;
+  const done=()=>{btn.innerHTML='<span class="ms sm">refresh</span> Fetch Latest';btn.disabled=false;};
+  if(tab==='news' && typeof triggerNewsDemo==='function'){
+    triggerNewsDemo().then(done).catch(done);
+  } else if(tab==='research' && typeof triggerResearchDemo==='function'){
+    triggerResearchDemo().then(done).catch(done);
+  } else if(tab==='tasks' && typeof triggerTaskDemo==='function'){
+    triggerTaskDemo().then(done).catch(done);
+  } else if(tab==='schedule' && typeof triggerSchedulerDemo==='function'){
+    triggerSchedulerDemo().then(done).catch(done);
+  } else {
+    setTimeout(done, 800);
+  }
+}
 
 // Task checkboxes
 document.querySelectorAll('.ti-check').forEach(box=>{
@@ -2448,10 +2521,10 @@ html.dark .palette-footer { background: rgba(255,255,255,0.03); }
 // All commands — grouped by category
 const PALETTE_COMMANDS = [
   // Goals
-  { id:'goal-new',     group:'Goals',      icon:'psychology',   iconBg:'var(--g-blue-light)',   iconColor:'var(--g-blue)',   title:'New Goal',                    sub:'Submit a goal to the Orchestrator',                  kbd:'⌘↵',   action:()=>{ closePalette(); document.getElementById('goalInput').focus(); } },
-  { id:'goal-ai',      group:'Goals',      icon:'biotech',      iconBg:'var(--g-blue-light)',   iconColor:'var(--g-blue)',   title:'AI Research Brief',           sub:'Research AI trends and draft a weekly brief',         tag:'Quick',  tagColor:'var(--g-blue)',   tagBg:'var(--g-blue-light)',  action:()=>{ closePalette(); setGoal('Research AI trends and draft a weekly brief'); document.getElementById('goalInput').focus(); } },
-  { id:'goal-week',    group:'Goals',      icon:'calendar_today',iconBg:'var(--g-violet-light)',iconColor:'var(--g-violet)', title:'Week Planning',               sub:'Plan my week and surface calendar conflicts',          tag:'Quick',  tagColor:'var(--g-violet)', tagBg:'var(--g-violet-light)',action:()=>{ closePalette(); setGoal('Plan my week and surface calendar conflicts'); document.getElementById('goalInput').focus(); } },
-  { id:'goal-news',    group:'Goals',      icon:'newspaper',    iconBg:'var(--g-amber-light)',  iconColor:'var(--g-amber)',  title:'News Briefing',               sub:'Summarise top tech news from the last 24 hours',       tag:'Quick',  tagColor:'var(--g-amber)',  tagBg:'var(--g-amber-light)', action:()=>{ closePalette(); setGoal('Summarise top tech news from the last 24 hours'); document.getElementById('goalInput').focus(); } },
+  { id:'goal-new',     group:'Goals',      icon:'psychology',   iconBg:'var(--g-blue-light)',   iconColor:'var(--g-blue)',   title:'New Goal',                    sub:'Submit a goal to the Orchestrator',                  kbd:'⌘↵',   action:()=>{ closePalette(); document.getElementById('nl-goal-input').focus(); } },
+  { id:'goal-ai',      group:'Goals',      icon:'biotech',      iconBg:'var(--g-blue-light)',   iconColor:'var(--g-blue)',   title:'AI Research Brief',           sub:'Research AI trends and draft a weekly brief',         tag:'Quick',  tagColor:'var(--g-blue)',   tagBg:'var(--g-blue-light)',  action:()=>{ closePalette(); setGoal('Research AI trends and draft a weekly brief'); document.getElementById('nl-goal-input').focus(); } },
+  { id:'goal-week',    group:'Goals',      icon:'calendar_today',iconBg:'var(--g-violet-light)',iconColor:'var(--g-violet)', title:'Week Planning',               sub:'Plan my week and surface calendar conflicts',          tag:'Quick',  tagColor:'var(--g-violet)', tagBg:'var(--g-violet-light)',action:()=>{ closePalette(); setGoal('Plan my week and surface calendar conflicts'); document.getElementById('nl-goal-input').focus(); } },
+  { id:'goal-news',    group:'Goals',      icon:'newspaper',    iconBg:'var(--g-amber-light)',  iconColor:'var(--g-amber)',  title:'News Briefing',               sub:'Summarise top tech news from the last 24 hours',       tag:'Quick',  tagColor:'var(--g-amber)',  tagBg:'var(--g-amber-light)', action:()=>{ closePalette(); setGoal('Summarise top tech news from the last 24 hours'); document.getElementById('nl-goal-input').focus(); } },
 
   // Agents
   { id:'agent-scan',   group:'Agents',     icon:'radar',        iconBg:'var(--g-green-light)',  iconColor:'var(--g-green)',  title:'Run Proactive Scan',          sub:'Agents scan GitHub, Slack, email for bottlenecks',    kbd:'',       action:()=>{ closePalette(); setTimeout(runScan, 200); } },
@@ -3220,7 +3293,7 @@ function finishOnboard() {
   // If goal was typed, pre-fill main input
   const goalEl = document.getElementById('onboardGoalInput');
   if(goalEl && goalEl.value.trim()) {
-    document.getElementById('goalInput').value = goalEl.value.trim();
+    document.getElementById('nl-goal-input').value = goalEl.value.trim();
   }
   document.getElementById('onboardOverlay').classList.remove('open');
   try { localStorage.setItem('orchestra-onboarded','true'); } catch(e){}
@@ -3255,7 +3328,7 @@ function renderFeed() {
         <div class="es-icon">📡</div>
         <div class="es-title">No activity yet</div>
         <div class="es-sub">Submit a goal to watch agents start working in real time.</div>
-        <button class="es-cta" onclick="document.getElementById('goalInput').focus()">
+        <button class="es-cta" onclick="document.getElementById('nl-goal-input').focus()">
           <span class="ms sm">psychology</span> Submit your first goal
         </button>
       </div>`;
@@ -3611,7 +3684,7 @@ html.dark .ad-input:focus { background: rgba(255,255,255,0.10); }
     </div>
     <span class="mn-label">Alerts</span>
   </button>
-  <button class="mn-item" onclick="document.getElementById('goalInput').focus()">
+  <button class="mn-item" onclick="document.getElementById('nl-goal-input').focus()">
     <span class="ms">add_circle</span>
     <span class="mn-label">New Goal</span>
   </button>
