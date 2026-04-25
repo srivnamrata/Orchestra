@@ -722,46 +722,56 @@ function switchAgentTab(tabId) {
 function displayAgentContent(agentName, agentTitle, icon, contentData) {
     // Store agent data for audio
     currentAgentData = contentData;
-    
-    // Update panel header
-    document.getElementById('agent-icon').className = `fa-solid ${icon}`;
-    document.getElementById('agent-title').textContent = agentTitle;
-    
-    // CLEAR ALL CONTENT DIVS FOR FRESH START
-    document.getElementById('agent-content-news').innerHTML = '';
-    document.getElementById('agent-content-research').innerHTML = '';
-    document.getElementById('agent-content-tasks').innerHTML = '';
-    document.getElementById('agent-content-schedule').innerHTML = '';
-    
+
+    // Update panel header (elements may not exist in all layouts)
+    const agentIconEl = document.getElementById('agent-icon');
+    if (agentIconEl) agentIconEl.className = `fa-solid ${icon}`;
+    const agentTitleEl = document.getElementById('agent-title');
+    if (agentTitleEl) agentTitleEl.textContent = agentTitle;
+
+    // Map to the intel pane IDs used in index.html
+    const paneMap = {
+        news:     document.getElementById('pane-news')     || document.getElementById('agent-content-news'),
+        research: document.getElementById('pane-research') || document.getElementById('agent-content-research'),
+        tasks:    document.getElementById('pane-tasks')    || document.getElementById('agent-content-tasks'),
+        schedule: document.getElementById('pane-schedule') || document.getElementById('agent-content-schedule'),
+    };
+
+    // Clear all panes for a fresh start
+    Object.values(paneMap).forEach(el => { if (el) el.innerHTML = ''; });
+
+    // Helper: switch the intel tab to show the right pane
+    function _switchTab(tabName) {
+        if (typeof switchIntel === 'function') {
+            const btn = document.querySelector(`.intel-tab[onclick*="'${tabName}'"]`);
+            switchIntel(tabName, btn || document.querySelector('.intel-tab'));
+        }
+    }
+
     // Determine which content div to use based on agent type
     let contentDiv;
     if (contentData.articles_fetched) {
-        // News Agent
-        contentDiv = document.getElementById('agent-content-news');
+        contentDiv = paneMap.news;
         currentAgentType = "news";
-        switchAgentTab('news-tab');
+        _switchTab('news');
     } else if (contentData.papers_analyzed) {
-        // Research Agent
-        contentDiv = document.getElementById('agent-content-research');
+        contentDiv = paneMap.research;
         currentAgentType = "research";
-        switchAgentTab('research-tab');
+        _switchTab('research');
     } else if (contentData.tasks && contentData.tasks.length > 0) {
-        // Task List
-        contentDiv = document.getElementById('agent-content-tasks');
+        contentDiv = paneMap.tasks;
         currentAgentType = "task";
-        switchAgentTab('task-tab');
+        _switchTab('tasks');
     } else if (contentData.events && contentData.events.length > 0) {
-        // Scheduler/Events List
-        contentDiv = document.getElementById('agent-content-schedule');
+        contentDiv = paneMap.schedule;
         currentAgentType = "schedule";
-        switchAgentTab('schedule-tab');
+        _switchTab('schedule');
     } else if (contentData.status === 'empty') {
-        // Empty state
-        contentDiv = document.getElementById('agent-content-tasks');
+        contentDiv = paneMap.tasks;
         currentAgentType = "task";
-        switchAgentTab('task-tab');
+        _switchTab('tasks');
     } else {
-        contentDiv = document.getElementById('agent-content-news');
+        contentDiv = paneMap.news;
     }
     
     // Generate audio text summary
