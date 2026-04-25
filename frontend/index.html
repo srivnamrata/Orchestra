@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Orchestra — AI Productivity Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Google+Sans+Display:wght@400;500;700&family=Google+Sans+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
 <style>
 
@@ -213,6 +214,11 @@ html.dark body::before {
 
   --glass-stat-bg:      rgba(255,255,255,0.55);
   --glass-stat-border:  rgba(255,255,255,0.40);
+
+  /* Aliases used by sidebar/panel components */
+  --glass-bg:           rgba(255,255,255,0.72);
+  --glass-border:       rgba(255,255,255,0.45);
+  --glass-blur:         blur(20px) saturate(180%);
 }
 html.dark {
   --glass-light-bg:     rgba(30,29,35,0.78);
@@ -226,6 +232,10 @@ html.dark {
 
   --glass-stat-bg:      rgba(35,34,40,0.65);
   --glass-stat-border:  rgba(255,255,255,0.08);
+
+  --glass-bg:           rgba(28,27,32,0.78);
+  --glass-border:       rgba(255,255,255,0.08);
+  --glass-blur:         blur(20px) saturate(160%);
 }
 
 /* ── Apply glass: Sidebar ── */
@@ -1584,7 +1594,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
         <div class="g-dot-r" style="background:#4285f4"></div><div class="g-dot-r" style="background:#ea4335"></div>
       </div>
       <div>
-        <div class="g-hi">Good afternoon · Saturday, 25 Apr 2026</div>
+        <div class="g-hi" id="greetingLine"></div>
         <div class="g-title">Welcome back, Administrator 👋</div>
         <div class="g-sub">3 workflows active · Critic flagged 1 bottleneck<br>7 tasks completed while you were away.</div>
       </div>
@@ -1923,6 +1933,17 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
 </main>
 
 <script>
+// ── Dynamic greeting ──
+(function() {
+  const now = new Date();
+  const h = now.getHours();
+  const period = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  const dayName = now.toLocaleDateString('en-GB', { weekday: 'long' });
+  const dateStr = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const el = document.getElementById('greetingLine');
+  if (el) el.textContent = `Good ${period} · ${dayName}, ${dateStr}`;
+})();
+
 // ── Dark / Light mode ──
 function applyTheme(dark) {
   document.documentElement.classList.toggle('dark', dark);
@@ -2242,88 +2263,6 @@ document.querySelectorAll('.ti-check').forEach(box=>{
 
 // Nav
 document.querySelectorAll('.nav-item').forEach(item=>{item.addEventListener('click',function(){document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));this.classList.add('active');});});
-
-// ══ COMMAND PALETTE ══════════════════════════════════════════════
-const PALETTE_ITEMS=[
-  {section:'Navigate',icon:'home',label:'Go to Dashboard',sub:'',action:()=>{}},
-  {section:'Navigate',icon:'bolt',label:'View Active Workflows',sub:'3 running',action:()=>window.open('orchestra-trace.html','_blank')},
-  {section:'Navigate',icon:'psychology',label:'Open Agent Trace',sub:'Full timeline view',action:()=>window.open('orchestra-trace.html','_blank')},
-  {section:'Navigate',icon:'folder_open',label:'View Outputs',sub:'',action:()=>{}},
-  {section:'Actions',icon:'send',label:'Submit New Goal',sub:'⌘ Enter',action:()=>{closePalette();document.getElementById('goalInput').focus();}},
-  {section:'Actions',icon:'radar',label:'Run Agent Scan',sub:'Proactive scan',action:()=>{closePalette();runScan();}},
-  {section:'Actions',icon:'manage_search',label:'Critic Replan',sub:'Review task graph',action:()=>{closePalette();runDemo('critic');}},
-  {section:'Actions',icon:'check_circle',label:'Vibe Check',sub:'Goal alignment',action:()=>{closePalette();runDemo('vibe');}},
-  {section:'Actions',icon:'gavel',label:'Start Agent Debate',sub:'Best strategy wins',action:()=>{closePalette();runDemo('debate');}},
-  {section:'Agents',icon:'hub',label:'Orchestrator',sub:'Coordinating · 72%',action:()=>{closePalette();}},
-  {section:'Agents',icon:'travel_explore',label:'Researcher',sub:'Searching · 55%',action:()=>{closePalette();}},
-  {section:'Agents',icon:'rate_review',label:'Critic',sub:'Busy · 88%',action:()=>{closePalette();}},
-  {section:'Agents',icon:'security',label:'Auditor',sub:'Monitoring · 40%',action:()=>{closePalette();}},
-  {section:'Settings',icon:'light_mode',label:'Toggle Dark / Light Mode',sub:'',action:()=>{closePalette();toggleTheme();}},
-  {section:'Settings',icon:'notifications',label:'Notifications',sub:'3 unread',action:()=>{closePalette();toggleNotifs();}},
-  {section:'Settings',icon:'settings',label:'Settings',sub:'',action:()=>{closePalette();}},
-];
-let paletteOpen=false,paletteSel=0,paletteFiltered=[];
-function openPalette(){paletteOpen=true;paletteFiltered=PALETTE_ITEMS;document.getElementById('paletteBackdrop').classList.add('open');document.getElementById('palette').classList.add('open');document.getElementById('paletteInput').value='';renderPalette('');setTimeout(()=>document.getElementById('paletteInput').focus(),50);}
-function closePalette(){paletteOpen=false;document.getElementById('paletteBackdrop').classList.remove('open');document.getElementById('palette').classList.remove('open');}
-function filterPalette(q){paletteFiltered=q?PALETTE_ITEMS.filter(i=>i.label.toLowerCase().includes(q.toLowerCase())||i.sub.toLowerCase().includes(q.toLowerCase())||i.section.toLowerCase().includes(q.toLowerCase())):PALETTE_ITEMS;paletteSel=0;renderPalette(q);}
-function renderPalette(q){
-  const el=document.getElementById('paletteSections');
-  if(!paletteFiltered.length){el.innerHTML=`<div class="palette-empty"><span class="ms">search_off</span>No results for "${q}"</div>`;return;}
-  const sections={};paletteFiltered.forEach((item,i)=>{if(!sections[item.section])sections[item.section]=[];sections[item.section].push({...item,idx:i});});
-  let html='';Object.entries(sections).forEach(([sec,items])=>{html+=`<div class="palette-section-label">${sec}</div>`;items.forEach(item=>{html+=`<div class="palette-item${item.idx===paletteSel?' selected':''}" onclick="paletteSelect(${item.idx})"><div class="pi-icon"><span class="ms sm">${item.icon}</span></div><div style="flex:1;min-width:0"><div class="pi-label">${item.label}</div>${item.sub&&!item.sub.includes('⌘')?`<div class="pi-sub">${item.sub}</div>`:''}</div>${item.sub&&item.sub.includes('⌘')?`<span class="pi-kbd">${item.sub}</span>`:''}</div>`;});});
-  el.innerHTML=html;
-}
-function paletteSelect(idx){const item=paletteFiltered[idx];if(item){closePalette();item.action();}}
-function palettKeydown(e){
-  if(e.key==='ArrowDown'){e.preventDefault();paletteSel=Math.min(paletteSel+1,paletteFiltered.length-1);renderPalette(document.getElementById('paletteInput').value);}
-  else if(e.key==='ArrowUp'){e.preventDefault();paletteSel=Math.max(paletteSel-1,0);renderPalette(document.getElementById('paletteInput').value);}
-  else if(e.key==='Enter'){e.preventDefault();paletteSelect(paletteSel);}
-  else if(e.key==='Escape'){closePalette();}
-  setTimeout(()=>{const sel=document.querySelector('.palette-item.selected');if(sel)sel.scrollIntoView({block:'nearest'});},10);
-}
-
-// ══ NOTIFICATIONS ════════════════════════════════════════════════
-const NOTIFS=[
-  {id:1,icon:'🎯',iconBg:'var(--g-green-light)',title:'API Documentation complete',desc:'3 files ready — 2,380 words, schema JSON, and PDF.',time:'2 min ago',tag:'agent',unread:true,actionLabel:'View outputs'},
-  {id:2,icon:'⚖️',iconBg:'var(--g-amber-light)',title:'Critic flagged scope creep',desc:'Subtask 3 split recommended. Saves ~40 min.',time:'8 min ago',tag:'review',unread:true,actionLabel:'Review replan'},
-  {id:3,icon:'🚨',iconBg:'var(--g-red-light)',title:'PR #42 has failing checks',desc:'unit-tests and lint failing. Blocking merge.',time:'14 min ago',tag:'review',unread:true,actionLabel:'Open GitHub'},
-  {id:4,icon:'🔍',iconBg:'var(--g-blue-light)',title:'Researcher completed web crawl',desc:'14 endpoints fetched, 3 deprecated filtered.',time:'22 min ago',tag:'agent',unread:false,actionLabel:'See results'},
-  {id:5,icon:'🛡️',iconBg:'var(--g-teal-light)',title:'Safety audit passed',desc:'PII clean · Goal alignment 96% · Ethics 94%.',time:'35 min ago',tag:'agent',unread:false,actionLabel:''},
-  {id:6,icon:'📧',iconBg:'var(--g-blue-light)',title:'Product launch sign-off overdue',desc:'2 days overdue — Auditor flagged for review.',time:'2h ago',tag:'review',unread:false,actionLabel:'Open email'},
-  {id:7,icon:'✍️',iconBg:'var(--g-violet-light)',title:'Writer started documentation draft',desc:'Targeting 2,000–2,500 words across 6 sections.',time:'42 min ago',tag:'agent',unread:false,actionLabel:''},
-];
-let notifFilter='all',notifOpen=false,notifsRead=new Set();
-function toggleNotifs(){notifOpen=!notifOpen;document.getElementById('notifPanel').classList.toggle('open',notifOpen);document.getElementById('notifBackdrop').classList.toggle('open',notifOpen);if(notifOpen)renderNotifs();}
-function filterNotifs(f,btn){notifFilter=f;document.querySelectorAll('.notif-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderNotifs();}
-function renderNotifs(){
-  const list=document.getElementById('notifList');
-  const visible=NOTIFS.filter(n=>notifFilter==='all'||n.tag===notifFilter);
-  if(!visible.length){list.innerHTML=`<div style="padding:32px;text-align:center;color:var(--md-muted);font-size:13px">No notifications</div>`;return;}
-  list.innerHTML=visible.map(n=>`<div class="notif-item${n.unread&&!notifsRead.has(n.id)?' unread':''}" onclick="readNotif(${n.id})"><div class="ni-icon" style="background:${n.iconBg}">${n.icon}</div><div class="ni-body"><div class="ni-title">${n.title}</div><div class="ni-desc">${n.desc}</div><div class="ni-time">${n.time}</div></div>${n.actionLabel?`<button class="ni-action" onclick="event.stopPropagation()">${n.actionLabel}</button>`:''}</div>`).join('');
-}
-function readNotif(id){notifsRead.add(id);updateNotifDot();renderNotifs();}
-function markAllRead(){NOTIFS.forEach(n=>notifsRead.add(n.id));updateNotifDot();renderNotifs();}
-function updateNotifDot(){const unread=NOTIFS.filter(n=>n.unread&&!notifsRead.has(n.id)).length;const dot=document.getElementById('notifDot');if(dot)dot.style.display=unread?'block':'none';}
-updateNotifDot();
-
-// ══ COMPLETION TOAST + CONFETTI ══════════════════════════════════
-function showCompletionToast(title,sub,files){
-  const toast=document.getElementById('completionToast');
-  document.getElementById('ctTitle').textContent=title;document.getElementById('ctSub').textContent=sub;
-  document.getElementById('ctFiles').innerHTML=files.map(f=>`<div class="ct-file"><span class="ms sm">description</span>${f}</div>`).join('');
-  toast.classList.add('show');launchConfetti();setTimeout(hideToast,8000);
-  NOTIFS.unshift({id:Date.now(),icon:'🎉',iconBg:'var(--g-green-light)',title,desc:sub,time:'just now',tag:'agent',unread:true,actionLabel:'View outputs'});
-  updateNotifDot();
-}
-function hideToast(){document.getElementById('completionToast').classList.remove('show');}
-function launchConfetti(){
-  const canvas=document.getElementById('confettiCanvas');canvas.width=window.innerWidth;canvas.height=window.innerHeight;
-  const ctx=canvas.getContext('2d'),COLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#7c4dff','#00bcd4'];
-  const pieces=Array.from({length:120},()=>({x:Math.random()*canvas.width,y:Math.random()*-canvas.height*0.5,w:6+Math.random()*8,h:4+Math.random()*5,color:COLORS[Math.floor(Math.random()*COLORS.length)],rot:Math.random()*Math.PI*2,vx:(Math.random()-0.5)*4,vy:2+Math.random()*4,vr:(Math.random()-0.5)*0.15,opacity:1}));
-  let frame;function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);let alive=false;pieces.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;if(p.y<canvas.height+20){alive=true;p.opacity=Math.max(0,1-p.y/canvas.height);}ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.globalAlpha=p.opacity;ctx.fillStyle=p.color;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore();});if(alive)frame=requestAnimationFrame(draw);else{ctx.clearRect(0,0,canvas.width,canvas.height);cancelAnimationFrame(frame);}}draw();
-}
-let completionFired=false;
-const completionCheck=setInterval(()=>{if(!completionFired&&p1>=98){completionFired=true;clearInterval(completionCheck);setTimeout(()=>showCompletionToast('API Documentation complete! 🎉','3 files ready · 38 min · 2,380 words',['api-docs-v1.0.pdf','schemas-final.json','api-docs-v1.0.md']),1200);}},1000);
 
 // ── Keyboard ──
 document.addEventListener('keydown',e=>{
@@ -3933,4 +3872,5 @@ function mobilNav(section, btn) {
      This script patches the replayTrace function on the trace page
 ══════════════════════════════════════ -->
 
+<script src="app.js"></script>
 </body></html>

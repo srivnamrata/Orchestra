@@ -1410,21 +1410,6 @@ function saveArticle(title) {
 }
 
 // Task action buttons
-function editTask(taskTitle, taskObj = null) {
-    // If taskObj is provided, use it; otherwise create a basic object from title
-    const taskData = taskObj || {
-        id: null,
-        title: taskTitle,
-        description: '',
-        priority: 'medium',
-        due_date: null
-    };
-    
-    appendLog(`✏️ Editing task: "${taskTitle}"`, 'info');
-    openTaskModal('edit', taskData);
-}
-
-// Properly implement task action functions with API calls
 async function editTask(taskId, taskTitle) {
     if (!taskId) {
         appendLog(`❌ Cannot edit task: missing task ID`, 'error');
