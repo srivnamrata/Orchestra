@@ -1,0 +1,78 @@
+/* ============================================================
+   ORCHESTRA MOBILE RESPONSIVE — v2.0
+   ============================================================ */
+
+@media (max-width: 900px) {
+  /* Hide sidebar — use bottom nav instead */
+  .sidebar, [class*="sidebar"], #sidebar { display: none !important; }
+
+  /* Full width main */
+  .main, [class*="main-content"], #main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Bottom nav */
+  #orch-mobile-nav {
+    display: flex !important;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+    background: var(--orch-glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-top: 1px solid var(--orch-glass-border);
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+    justify-content: space-around;
+  }
+  .orch-mn-item {
+    display: flex !important;
+    flex-direction: column; align-items: center; gap: 3px;
+    flex: 1; cursor: pointer; padding: 4px 0;
+    color: var(--orch-muted); background: none; border: none;
+    font-family: var(--orch-font);
+  }
+  .orch-mn-item.active { color: var(--orch-blue); }
+  .orch-mn-icon { font-size: 22px; }
+  .orch-mn-label { font-family: var(--orch-font-mono); font-size: 9px; font-weight: 600; }
+
+  /* Content padding for bottom nav */
+  .content, [class*="content"], #content { padding-bottom: 80px !important; }
+
+  /* Stack cards */
+  .orch-main-grid,
+  [class*="grid"], [class*="columns"] {
+    grid-template-columns: 1fr !important;
+    display: flex !important; flex-direction: column !important;
+  }
+
+  /* Stats 2-up */
+  .orch-stats-row { grid-template-columns: 1fr 1fr !important; }
+
+  /* Greeting stacks */
+  .orch-greeting {
+    flex-direction: column !important;
+    gap: 14px !important;
+    padding: 18px !important;
+  }
+
+  /* Topbar simplifies */
+  .orch-topbar-clock,
+  .orch-agent-pill { display: none !important; }
+
+  /* News 1-col */
+  .orch-news-grid { grid-template-columns: 1fr !important; }
+
+  /* Full-width drawer */
+  #orch-agent-drawer { width: 100% !important; right: -100% !important; }
+  #orch-agent-drawer.open { right: 0 !important; }
+
+  /* Intel tabs scroll */
+  .orch-intel-tabs {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+  }
+}
+
+@media (min-width: 901px) {
+  #orch-mobile-nav { display: none !important; }
+}
