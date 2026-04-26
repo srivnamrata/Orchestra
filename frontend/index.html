@@ -2068,7 +2068,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
     <div class="nav-item" onclick="window.switchView('slack')"><span class="ms">forum</span> Slack <span class="nav-badge nb-blue">stub</span></div>
     <div class="nav-item" onclick="window.switchView('email')"><span class="ms">mail</span> Email <span class="nav-badge nb-blue">stub</span></div>
     <div class="nav-item" onclick="window.switchView('discovery')"><span class="ms">dynamic_form</span> Discovery Lab <span class="nav-badge nb-violet">MCP</span></div>
-    <div class="nav-item" onclick="window.switchView('library')"><span class="ms">library_books</span> Library <span class="nav-badge nb-violet">Veda</span></div>
+    <div class="nav-item" onclick="window.switchView('library')"><span class="ms">auto_stories</span> Veda <span class="nav-badge nb-violet">Library</span></div>
     <div class="nav-item" onclick="window.switchView('guru')"><span class="ms">self_improvement</span> Param Mitra <span class="nav-badge nb-amber">GURU</span></div>
   </nav>
 
@@ -2431,8 +2431,8 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
         <div id="guru-audit-container">
            <!-- Populated by app.js -->
            <div class="empty-state" style="padding:40px; text-align:center; background:var(--md-surface-1); border-radius:24px">
-              <p style="color:var(--md-dim)">I am observing your journey... Ask me for a "Life Audit" to begin.</p>
-              <button class="goal-run" style="margin-top:20px" onclick="useSuggestion('Param Mitra, give me a blunt Life Audit.')">Begin Audit</button>
+              <p style="color:var(--md-dim)">I am observing your journey… I will read your git activity, emails, tasks, and goals.</p>
+              <button class="goal-run" style="margin-top:20px" onclick="window.runGuruAudit()">Begin Life Audit</button>
            </div>
         </div>
       </div>
@@ -2464,21 +2464,22 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
       <div class="intel-body">
 
         <div class="intel-pane active" id="pane-news">
-          <div class="intel-source-label">Hacker News · 25 Apr 2026</div>
-          <div class="news-grid">
-            <div class="news-card nc-hn"><div class="news-source-row"><div class="news-favicon" style="background:#ff6600;color:white">Y</div><span class="news-source-name">Hacker News</span><span class="news-date">25 Apr</span></div><div class="news-title">There Will Be a Scientific Theory of Deep Learning</div><div class="news-meta"><span class="news-score">▲ 18</span><span class="news-score">💬 1</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-            <div class="news-card nc-hn"><div class="news-source-row"><div class="news-favicon" style="background:#ff6600;color:white">Y</div><span class="news-source-name">Hacker News</span><span class="news-date">25 Apr</span></div><div class="news-title">Machine Learning Reveals Unknown Transient Phenomena in Historic Images</div><div class="news-meta"><span class="news-score">▲ 43</span><span class="news-score">💬 34</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-            <div class="news-card nc-hn"><div class="news-source-row"><div class="news-favicon" style="background:#ff6600;color:white">Y</div><span class="news-source-name">Hacker News</span><span class="news-date">25 Apr</span></div><div class="news-title">OpenAI's o3 Scores 136.4 on Humanity's Last Exam — Experts Divided</div><div class="news-meta"><span class="news-score">▲ 312</span><span class="news-score">💬 148</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
+          <div class="intel-source-label" id="news-source-label">AI &amp; ML News · Loading…</div>
+          <div class="news-grid" id="hn-news-grid">
+            <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--md-dim);font-size:13px">
+              <span class="ms" style="font-size:24px;display:block;margin-bottom:8px">rss_feed</span>
+              Fetching live AI &amp; ML stories from HackerNews, DEV.to, Reddit ML…
+            </div>
           </div>
         </div>
 
         <div class="intel-pane" id="pane-research">
-          <div class="intel-source-label">arXiv · Latest Papers</div>
-          <div class="news-grid" style="grid-template-columns:repeat(4,1fr)">
-            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.AI</span><span class="news-date">25 Apr</span></div><div class="news-title">Scaling Laws for Reward Model Overoptimization in RLHF</div><div class="news-meta"><span class="news-score" style="color:var(--g-blue)">★ Highly cited</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.LG</span><span class="news-date">24 Apr</span></div><div class="news-title">Beyond Attention: State Space Models as Universal Sequence Processors</div><div class="news-meta"><span class="news-score" style="color:var(--g-blue)">★ New</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.CL</span><span class="news-date">24 Apr</span></div><div class="news-title">Multi-Agent Debate Improves Factuality in LLM Outputs</div><div class="news-meta"><span class="news-score" style="color:var(--g-green)">★ Relevant</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.MA</span><span class="news-date">23 Apr</span></div><div class="news-title">Orchestra: Coordinated Multi-Agent Systems for Long-Horizon Tasks</div><div class="news-meta"><span class="news-score" style="color:var(--g-amber)">★ Pinned</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
+          <div class="intel-source-label" id="research-source-label">arXiv · Loading…</div>
+          <div class="news-grid" style="grid-template-columns:repeat(4,1fr)" id="arxiv-research-grid">
+            <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--md-dim);font-size:13px">
+              <span class="ms" style="font-size:24px;display:block;margin-bottom:8px">science</span>
+              Fetching latest arXiv &amp; Semantic Scholar papers…
+            </div>
           </div>
         </div>
 
@@ -2681,72 +2682,5 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
      This script patches the replayTrace function on the trace page
 ══════════════════════════════════════ -->
 
-<script>
-// Consolidate all core logic into app.js
-(function() {
-  const src = window.location.protocol === 'file:' ? './app.js' : '/static/app.js';
-  const script = document.createElement('script');
-  script.src = src;
-  script.defer = true;
-  document.body.appendChild(script);
-})();
-
-window.fetchBooks = async function() {
-    const bookshelf = document.getElementById('bookshelf');
-    if (!bookshelf) return;
-
-    try {
-        const res = await fetch('/api/books');
-        const books = await res.json();
-        
-        if (books.length === 0) {
-            bookshelf.innerHTML = `
-                <div class="empty-state" style="grid-column: 1/-1; padding:60px; text-align:center; background:var(--md-surface-1); border-radius:16px">
-                    <div class="ms" style="font-size:48px; color:var(--md-dim); margin-bottom:12px">menu_book</div>
-                    <p style="color:var(--md-dim)">Your bookshelf is empty. Start by telling Alexandria what you are reading!</p>
-                </div>
-            `;
-            return;
-        }
-
-        bookshelf.innerHTML = books.map(b => `
-            <div class="mcp-tool-card anim a1" style="border-top:4px solid ${b.status === 'completed' ? 'var(--g-green)' : 'var(--g-blue)'}">
-                <div style="display:flex; justify-content:space-between; margin-bottom:12px">
-                    <div class="chip ${b.status}">${b.status.replace('-', ' ')}</div>
-                    <div style="font-size:10px; color:var(--md-dim)">${new Date(b.updated_at).toLocaleDateString()}</div>
-                </div>
-                <div style="font-weight:800; font-size:16px; margin-bottom:4px; color:var(--md-on-surface)">${b.title}</div>
-                <div style="font-size:12px; color:var(--md-dim); margin-bottom:16px">${b.author || 'Unknown Author'}</div>
-                
-                <div style="margin-bottom:8px; display:flex; justify-content:space-between; font-size:11px">
-                    <span>Progress</span>
-                    <span>${b.current_page} / ${b.total_pages} pages</span>
-                </div>
-                <div style="width:100%; height:6px; background:var(--md-surface-3); border-radius:10px; overflow:hidden">
-                    <div style="width:${b.pct}%; height:100%; background:var(--g-blue); border-radius:10px"></div>
-                </div>
-            </div>
-        `).join('');
-    } catch (e) {
-        console.error('Fetch books failed:', e);
-    }
-};
-
-// Update initUI to fetch books
-const originalInit = window.initUI;
-window.initUI = function() {
-    if (originalInit) originalInit();
-    window.fetchBooks();
-};
-
-// Trigger logic (example placeholder for integration)
-const originalSubmitGoal = window.submitGoal;
-window.submitGoal = function(goal) {
-    if (goal.toLowerCase().includes('alexandria')) {
-        console.log('Alexandria trigger activated');
-        window.fetchBooks();
-    }
-    if (originalSubmitGoal) originalSubmitGoal(goal);
-};
-</script>
+<script src="/static/app.js" defer></script>
 </body></html>

@@ -59,11 +59,13 @@ window.switchView = function(viewId) {
     const viewEl = document.getElementById(viewId) || document.getElementById('dashboard');
     if (viewEl) {
         viewEl.classList.add('active');
-        viewEl.style.display = (viewId === 'trace') ? 'block' : 'block';
+        viewEl.style.display = 'block';
         if (viewId === 'trace') {
             viewEl.style.height = 'calc(100vh - 64px)';
         }
     }
+
+    if (viewId === 'library') window.fetchBooks();
 };
 
 // ── Audio Engine ─────────────────────────────────────────────────────────────
@@ -236,6 +238,7 @@ const activityFeed = {
                     </div>
                 </div>
             `;
+        }
         if (w.type === 'guru-audit') {
             return `
                 <div class="guru-card anim a1">
@@ -608,6 +611,95 @@ window.switchIntel = function(type, btn) {
     if (pane) pane.classList.add('active');
 };
 
+// ── Veda / Books ────────────────────────────────────────────────────────────
+window.fetchBooks = async function() {
+    const shelf = document.getElementById('bookshelf');
+    if (!shelf) return;
+    try {
+        const res = await fetch(apiUrl('/api/books'));
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const books = await res.json();
+        if (!books || books.length === 0) {
+            shelf.innerHTML = `
+                <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--md-dim)">
+                    <span class="ms" style="font-size:48px;display:block;margin-bottom:12px">menu_book</span>
+                    <div style="font-size:15px;font-weight:600;margin-bottom:6px">Your library is empty</div>
+                    <div style="font-size:12px">Tell Veda to add a book: "Add Atomic Habits, I'm on page 80"</div>
+                </div>`;
+            return;
+        }
+        shelf.innerHTML = books.map(b => {
+            const pct = b.pct || 0;
+            const statusColor = b.status === 'done' ? 'var(--g-green)' : b.status === 'in-progress' ? 'var(--g-blue)' : 'var(--md-dim)';
+            const statusLabel = b.status === 'done' ? 'Finished' : b.status === 'in-progress' ? 'Reading' : 'To Read';
+            return `
+                <div class="run-card" style="display:flex;flex-direction:column;gap:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:start">
+                        <div>
+                            <div class="run-title" style="font-size:14px">${b.title}</div>
+                            <div style="font-size:11px;color:var(--md-dim);margin-top:2px">${b.author || 'Unknown author'}</div>
+                        </div>
+                        <span class="chip" style="background:${statusColor}22;color:${statusColor};font-size:10px">${statusLabel}</span>
+                    </div>
+                    ${b.status === 'in-progress' ? `
+                    <div>
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--md-dim);margin-bottom:4px">
+                            <span>Page ${b.current_page} / ${b.total_pages}</span>
+                            <span>${pct}%</span>
+                        </div>
+                        <div class="run-bar-bg"><div class="run-bar-fill" style="width:${pct}%;background:var(--g-blue)"></div></div>
+                    </div>` : ''}
+                    <div style="display:flex;gap:6px">
+                        <button class="na-btn" onclick="window.playAudio('${b.title.replace(/'/g,"\\'")} by ${(b.author||'').replace(/'/g,"\\'")}. You are ${pct} percent through.')">🎧 Listen</button>
+                        <button class="na-btn" onclick="activityFeed.log('Veda: Updating progress for ${b.title.replace(/'/g,"\\'")}...','status','VEDA')">✏️ Update</button>
+                    </div>
+                </div>`;
+        }).join('');
+    } catch(e) {
+        console.error('fetchBooks error:', e);
+        shelf.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--g-red)">Could not load books: ${e.message}</div>`;
+    }
+};
+
+// ── Guru / Param Mitra ───────────────────────────────────────────────────────
+window.runGuruAudit = async function() {
+    const container = document.getElementById('guru-audit-container');
+    if (!container) return;
+    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--md-dim)">
+        <span class="ms fa-spin" style="font-size:32px;color:var(--g-amber)">self_improvement</span>
+        <div style="margin-top:12px;font-size:13px">Param Mitra is observing your journey…</div>
+    </div>`;
+    activityFeed.log('Param Mitra is reading your git commits, emails, and tasks…', 'status', 'PARAM_MITRA');
+    try {
+        const res = await fetch(apiUrl('/api/guru/audit'), { method: 'POST' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.status !== 'success') throw new Error(data.message || 'Audit failed');
+        const a = data.audit;
+        const scores = a.scores || {};
+        const codeScore = scores.code_mastery || scores.code || 70;
+        const commScore = scores.communication || scores.comm || 70;
+        const effScore  = scores.efficiency    || scores.eff  || 60;
+        const trainings = a.trainings || [];
+        const widget = {
+            type: 'guru-audit',
+            message:   a.guru_message || a.message || '',
+            scores:    { code: codeScore, comm: commScore, eff: effScore },
+            trainings: trainings,
+            unlock:    a.potential_unlock || ''
+        };
+        container.innerHTML = activityFeed.renderWidget(widget);
+        activityFeed.log('Param Mitra has completed your Life Audit.', 'success', 'PARAM_MITRA', widget);
+    } catch(e) {
+        console.error('Guru audit error:', e);
+        activityFeed.log(`⚠️ Guru audit failed: ${e.message}`, 'warning', 'PARAM_MITRA');
+        container.innerHTML = `<div class="empty-state" style="padding:40px;text-align:center;background:var(--md-surface-1);border-radius:24px">
+            <p style="color:var(--g-red)">Could not connect to Param Mitra. Please try again.</p>
+            <button class="goal-run" style="margin-top:20px" onclick="window.runGuruAudit()">Retry</button>
+        </div>`;
+    }
+};
+
 // ── Rendering Functions ─────────────────────────────────────────────────────
 
 function renderVibeCheck(data) {
@@ -705,16 +797,40 @@ function renderNews(articles) {
         return;
     }
 
-    grid.innerHTML = (articles || []).map(a => {
+    const sourceColors = {
+        'hacker news': '#ff6600', 'hackernews': '#ff6600',
+        'dev.to': '#08090a', 'reddit': '#ff4500', 'arxiv': 'var(--g-blue)'
+    };
+
+    // Update source label if present
+    const sourceLabel = document.getElementById('news-source-label');
+    if (sourceLabel && articles.length > 0) {
+        const firstSource = (typeof articles[0].source === 'object') ? articles[0].source.name : (articles[0].source || 'News');
+        sourceLabel.textContent = `${firstSource} · ${new Date().toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}`;
+    }
+
+    const targetGrid = document.getElementById('hn-news-grid') || grid;
+    targetGrid.innerHTML = (articles || []).map(a => {
         const sourceName = (typeof a.source === 'object' && a.source !== null) ? (a.source.name || 'News') : (a.source || 'News');
-        const cleanTitle = (a.title || '').replace(/'/g, "\\'");
+        const srcKey = sourceName.toLowerCase();
+        const srcColor = sourceColors[srcKey] || 'var(--g-amber)';
+        const articleUrl = a.url || a.link || '#';
+        const cleanTitle = (a.title || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const scoreHtml = a.score ? `<span class="news-score">▲ ${a.score}</span>` :
+                          a.descendants != null ? `<span class="news-score">💬 ${a.descendants}</span>` : '';
+        const safeUrl = articleUrl.replace(/'/g, '%27');
         return `
-            <div class="news-card">
-                <div class="news-source-row"><div class="news-favicon" style="background:var(--g-amber);color:white">${sourceName.charAt(0)}</div><span class="news-source-name">${sourceName}</span></div>
+            <div class="news-card nc-hn">
+                <div class="news-source-row">
+                    <div class="news-favicon" style="background:${srcColor};color:white">${sourceName.charAt(0).toUpperCase()}</div>
+                    <span class="news-source-name">${sourceName}</span>
+                    <span class="news-date">${a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : ''}</span>
+                </div>
                 <div class="news-title">${a.title}</div>
+                ${scoreHtml ? `<div class="news-meta">${scoreHtml}</div>` : ''}
                 <div class="news-actions">
-                    <button class="na-btn" onclick="window.open('${a.url}','_blank')">📖 Read</button>
                     <button class="na-btn" onclick="window.playAudio('${cleanTitle}')">🎧 Listen</button>
+                    <button class="na-btn" onclick="window.open('${safeUrl}','_blank')">📖 Read</button>
                     <button class="na-btn" onclick="activityFeed.log('Article saved to Knowledge Graph','success','KNOWLEDGE')">🔖 Save</button>
                 </div>
             </div>
@@ -733,15 +849,25 @@ function renderResearch(papers) {
         return;
     }
 
-    grid.innerHTML = (papers || []).map(p => {
-        const cleanTitle = (p.title || '').replace(/'/g, "\\'");
+    const researchLabel = document.getElementById('research-source-label');
+    if (researchLabel) researchLabel.textContent = `arXiv · ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+
+    const targetGrid = document.getElementById('arxiv-research-grid') || grid;
+    targetGrid.innerHTML = (papers || []).map(p => {
+        const cleanTitle = (p.title || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeUrl = (p.url || '#').replace(/'/g, '%27');
+        const category = p.primary_category || p.source || 'arXiv';
         return `
             <div class="news-card nc-arxiv">
-                <div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white">R</div><span class="news-source-name">arXiv</span></div>
+                <div class="news-source-row">
+                    <div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div>
+                    <span class="news-source-name">${category}</span>
+                </div>
                 <div class="news-title">${p.title}</div>
+                ${p.citation_count ? `<div class="news-meta"><span class="news-score" style="color:var(--g-blue)">★ ${p.citation_count} citations</span></div>` : ''}
                 <div class="news-actions">
-                    <button class="na-btn" onclick="window.open('${p.url}','_blank')">📖 View</button>
                     <button class="na-btn" onclick="window.playAudio('${cleanTitle}')">🎧 Listen</button>
+                    <button class="na-btn" onclick="window.open('${safeUrl}','_blank')">📖 View</button>
                     <button class="na-btn" onclick="activityFeed.log('Paper indexed in Knowledge Graph','success','KNOWLEDGE')">🔖 Save</button>
                 </div>
             </div>
@@ -906,6 +1032,12 @@ function initUI() {
 
     window.switchView('dashboard');
     activityFeed.log('System ready. Orchestra MD3.', 'status');
+
+    // Auto-load live AI/ML news and research on startup
+    setTimeout(() => {
+        window.runDemo('news');
+        window.runDemo('research');
+    }, 500);
 
     // Initialize Agent Health Bars
     setTimeout(() => {
