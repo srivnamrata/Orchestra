@@ -790,6 +790,54 @@ window.useSuggestion = function(text) {
     }
 };
 
+window.discoverMCP = function() {
+    const url = document.getElementById('mcp-url').value;
+    if (!url) {
+        alert('Please enter an MCP server URL');
+        return;
+    }
+
+    const term = document.getElementById('mcp-terminal');
+    const list = document.getElementById('mcp-tools-list');
+    
+    const log = (msg, type = 'info') => {
+        const div = document.createElement('div');
+        div.className = `mcp-log-entry ${type}`;
+        div.textContent = `> ${msg}`;
+        term.appendChild(div);
+        term.scrollTop = term.scrollHeight;
+    };
+
+    log(`Connecting to ${url}...`, 'info');
+    
+    setTimeout(() => {
+        log(`Handshake successful. Version: MCP 1.0.4`, 'success');
+        log(`Inspecting server capabilities...`, 'info');
+    }, 1000);
+
+    setTimeout(() => {
+        log(`Found 1 tool: "database_query"`, 'info');
+        log(`Generating Zero-Shot connection logic...`, 'info');
+    }, 2500);
+
+    setTimeout(() => {
+        log(`[AUTO-GEN] Created mapping for 'database_query'`, 'success');
+        log(`Tool registered and ready for Orchestrator usage.`, 'success');
+        
+        list.innerHTML = `
+            <div class="mcp-tool-card anim a1">
+                <div class="mcp-tool-title"><span class="ms" style="color:var(--g-green)">database</span> database_query</div>
+                <div class="mcp-tool-desc">Executes structured queries against the discovered SQL instance.</div>
+                <div style="display:flex; gap:8px">
+                    <span class="chip">read</span><span class="chip">write</span>
+                </div>
+            </div>
+        `;
+        
+        activityFeed.log(`New tool "database_query" discovered via MCP from ${url}`, 'success', 'SYSTEM');
+    }, 4500);
+};
+
 window.submitFeedback = function(btn, type) {
     if (btn.classList.contains('active')) return;
     

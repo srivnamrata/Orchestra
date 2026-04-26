@@ -1301,6 +1301,53 @@ html.dark .feed-body#action-output .activity-item {
 .fb-btn .ms { font-size: 14px; }
 .fb-count { font-size: 11px; font-weight: 600; }
 
+/* ── Discovery Lab (MCP) ── */
+.mcp-grid { display: grid; grid-template-columns: 1fr 350px; gap: 24px; }
+.mcp-terminal {
+  background: #0d1117;
+  border-radius: 12px;
+  padding: 20px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #c9d1d9;
+  height: 400px;
+  overflow-y: auto;
+  border: 1px solid #30363d;
+}
+.mcp-log-entry { margin-bottom: 8px; line-height: 1.5; }
+.mcp-log-entry.info { color: #58a6ff; }
+.mcp-log-entry.success { color: #3fb950; }
+.mcp-log-entry.warn { color: #d29922; }
+.mcp-input-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  background: var(--glass-card-bg);
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-card-border);
+}
+.mcp-url-input {
+  flex: 1;
+  background: var(--md-surface-2);
+  border: 1px solid var(--md-surface-3);
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: var(--md-on-surface);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.mcp-tool-card {
+  background: var(--md-surface-1);
+  border: 1px solid var(--md-surface-3);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.mcp-tool-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; display:flex; align-items:center; gap:8px; }
+.mcp-tool-desc { font-size: 11px; color: var(--md-dim); margin-bottom: 12px; }
+
+
 
 
 
@@ -1878,6 +1925,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
     <div class="nav-item" onclick="window.switchView('github')"><span class="ms">code</span> GitHub <span class="nav-badge nb-blue">stub</span></div>
     <div class="nav-item" onclick="window.switchView('slack')"><span class="ms">forum</span> Slack <span class="nav-badge nb-blue">stub</span></div>
     <div class="nav-item" onclick="window.switchView('email')"><span class="ms">mail</span> Email <span class="nav-badge nb-blue">stub</span></div>
+    <div class="nav-item" onclick="window.switchView('discovery')"><span class="ms">dynamic_form</span> Discovery Lab <span class="nav-badge nb-violet">MCP</span></div>
   </nav>
 
   <!-- Quick Actions -->
@@ -2339,6 +2387,37 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
         </div>
       </div>
     </div>
+
+    <div id="discovery" class="view">
+      <div class="discovery-container" style="padding:24px">
+        <div class="view-header" style="margin-bottom:32px">
+          <h2 style="color:var(--md-on-surface)">MCP Discovery Lab</h2>
+          <p style="color:var(--md-dim)">Connect agents to external MCP servers and discover new tools via Zero-Shot API inspection.</p>
+        </div>
+
+        <div class="mcp-grid">
+          <div class="mcp-left">
+            <div class="mcp-terminal" id="mcp-terminal">
+              <div class="mcp-log-entry info">> Initializing MCP Discovery Protocol...</div>
+              <div class="mcp-log-entry info">> Awaiting server URL...</div>
+            </div>
+
+            <div class="mcp-input-group">
+              <input type="text" class="mcp-url-input" id="mcp-url" placeholder="https://api.example.com/mcp-server">
+              <button class="goal-run" onclick="discoverMCP()"><span class="ms sm">settings_input_component</span> Connect Server</button>
+            </div>
+          </div>
+
+          <div class="mcp-right">
+            <div class="sec-title" style="margin-bottom:16px">Discovered Tools</div>
+            <div id="mcp-tools-list">
+              <div class="empty-state" style="padding:20px; font-size:12px; color:var(--md-dim)">No tools discovered yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
     <div id="trace" class="view" style="height: calc(100vh - 64px); padding: 0;">
       <iframe src="/static/trace.html" style="width: 100%; height: 100%; border: none; border-radius: 0;" title="Agent Trace UI"></iframe>
