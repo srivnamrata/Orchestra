@@ -1,5 +1,4 @@
-"""
-Alexandria Agent — The Personal Librarian
+Alexandria Agent — The Librarian (Rebranded to Veda)
 =========================================
 Manages your reading list, tracks page progress, and organizes your digital library.
 """
@@ -21,7 +20,7 @@ class LibrarianAgent:
         Parses natural language reading updates.
         Example: "Add Autobiography of a Yogi to my list. I am on page 369"
         """
-        prompt = f"""You are Alexandria, the Librarian Agent. 
+        prompt = f"""You are Veda, the Librarian Agent. 
 A user said: "{text}"
 
 Extract the following information in JSON format:
