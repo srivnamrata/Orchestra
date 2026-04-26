@@ -109,6 +109,7 @@ window.switchView = function(viewId) {
     if (bar) bar.style.display = (viewId === 'dashboard') ? 'none' : 'flex';
 
     if (viewId === 'library') window.fetchBooks();
+    if (viewId === 'guru') window.runGuruAudit();
 };
 
 // ── Veda chat submission ─────────────────────────────────────────────────────
@@ -674,7 +675,17 @@ window.runDemo = async function(type) {
 
 window.fetchIntel = function(type, btn) {
     if (!type) {
-        window.runDemo();
+        // Fetch Latest: activate News tab, show loading, then refresh
+        const newsTab = document.querySelector('.intel-tab');
+        window.switchIntel('news', newsTab);
+        const grid = document.getElementById('hn-news-grid');
+        if (grid) grid.innerHTML = `<div style="grid-column:1/-1;padding:16px;text-align:center;color:var(--md-dim);font-size:12px"><span class="ms" style="font-size:20px;display:block;margin-bottom:6px">refresh</span>Refreshing…</div>`;
+        const label = document.getElementById('news-source-label');
+        if (label) label.textContent = 'Fetching latest AI & ML news…';
+        window.runDemo('news');
+        window.runDemo('research');
+        window.runDemo('tasks');
+        window.runDemo('schedule');
         return;
     }
     window.switchIntel(type, btn);
@@ -684,6 +695,11 @@ window.fetchIntel = function(type, btn) {
 window.switchIntel = function(type, btn) {
     document.querySelectorAll('.intel-tab').forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
+    else {
+        document.querySelectorAll('.intel-tab').forEach(t => {
+            if (t.textContent.toLowerCase().includes(type)) t.classList.add('active');
+        });
+    }
     document.querySelectorAll('.intel-pane').forEach(p => p.classList.remove('active'));
     const pane = document.getElementById(`pane-${type}`);
     if (pane) pane.classList.add('active');
@@ -739,42 +755,70 @@ window.fetchBooks = async function() {
     }
 };
 
-// ── Guru / Param Mitra ───────────────────────────────────────────────────────
+// ── Guru / Param Mitra — Insights from the Week ─────────────────────────────
 window.runGuruAudit = async function() {
     const container = document.getElementById('guru-audit-container');
+    const refreshBtn = document.getElementById('guru-refresh-btn');
     if (!container) return;
-    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--md-dim)">
-        <span class="ms fa-spin" style="font-size:32px;color:var(--g-amber)">self_improvement</span>
-        <div style="margin-top:12px;font-size:13px">Param Mitra is observing your journey…</div>
+    if (refreshBtn) refreshBtn.disabled = true;
+
+    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--md-dim);font-size:13px">
+        <span class="ms" style="font-size:32px;display:block;margin-bottom:10px;color:var(--g-amber)">self_improvement</span>
+        Param Mitra is reading your week…
     </div>`;
-    activityFeed.log('Param Mitra is reading your git commits, emails, and tasks…', 'status', 'PARAM_MITRA');
+
     try {
         const res = await fetch(apiUrl('/api/guru/audit'), { method: 'POST' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.status !== 'success') throw new Error(data.message || 'Audit failed');
         const a = data.audit;
-        const scores = a.scores || {};
-        const codeScore = scores.code_mastery || scores.code || 70;
-        const commScore = scores.communication || scores.comm || 70;
-        const effScore  = scores.efficiency    || scores.eff  || 60;
-        const trainings = a.trainings || [];
-        const widget = {
-            type: 'guru-audit',
-            message:   a.guru_message || a.message || '',
-            scores:    { code: codeScore, comm: commScore, eff: effScore },
-            trainings: trainings,
-            unlock:    a.potential_unlock || ''
+
+        const assessIcon = v => ({ great: '✅', good: '👍', needs_improvement: '⚠️' }[v] || '📊');
+        const assessColor = v => ({ great: 'var(--g-green)', good: 'var(--g-blue)', needs_improvement: 'var(--g-amber)' }[v] || 'var(--md-dim)');
+
+        const insightCard = (icon, iconColor, label, section) => {
+            const s = section || {};
+            const hasTraining = s.training && typeof s.training === 'object';
+            return `
+            <div class="run-card" style="border-top:3px solid ${assessColor(s.assessment)}">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                <span class="ms" style="font-size:20px;color:${iconColor}">${icon}</span>
+                <div style="flex:1">
+                  <div style="font-weight:700;font-size:13px">${label}</div>
+                  <div style="font-size:11px;color:var(--md-dim)">${assessIcon(s.assessment)} ${(s.assessment || 'reviewing').replace('_', ' ')}</div>
+                </div>
+              </div>
+              <p style="font-size:12px;color:var(--md-on-surface);line-height:1.6;margin:0 0 10px">${s.insight || 'Analysing…'}</p>
+              ${hasTraining ? `
+              <div style="background:var(--g-amber-light);border:1px solid rgba(176,96,0,0.2);border-radius:10px;padding:10px 12px;font-size:11px">
+                <div style="font-weight:700;color:var(--g-amber);margin-bottom:3px">📚 Suggested: ${s.training.topic}</div>
+                <div style="color:var(--md-dim)">${s.training.why || ''}</div>
+                ${s.training.link_hint ? `<div style="margin-top:4px;color:var(--g-blue);font-weight:600">${s.training.link_hint}</div>` : ''}
+              </div>` : ''}
+            </div>`;
         };
-        container.innerHTML = activityFeed.renderWidget(widget);
-        activityFeed.log('Param Mitra has completed your Life Audit.', 'success', 'PARAM_MITRA', widget);
+
+        container.innerHTML = `
+          ${a.summary ? `<div class="run-card" style="background:var(--g-amber-light);border:1px solid rgba(176,96,0,0.15);margin-bottom:16px;padding:14px 16px">
+            <div style="font-size:13px;font-weight:600;color:var(--md-on-surface)">${a.summary}</div>
+          </div>` : ''}
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:16px">
+            ${insightCard('code', 'var(--g-blue)', 'Code Quality', a.code)}
+            ${insightCard('mail', '#7c3aed', 'Communication', a.communication)}
+            ${insightCard('task_alt', 'var(--g-green)', 'Efficiency', a.efficiency)}
+          </div>
+          ${a.cheer ? `<div style="text-align:center;padding:16px;font-size:14px;font-weight:600;color:var(--g-amber)">🙏 ${a.cheer}</div>` : ''}`;
+
+        activityFeed.log(`Param Mitra: ${a.summary || 'Weekly insights ready.'}`, 'success', 'PARAM_MITRA');
     } catch(e) {
         console.error('Guru audit error:', e);
-        activityFeed.log(`⚠️ Guru audit failed: ${e.message}`, 'warning', 'PARAM_MITRA');
-        container.innerHTML = `<div class="empty-state" style="padding:40px;text-align:center;background:var(--md-surface-1);border-radius:24px">
-            <p style="color:var(--g-red)">Could not connect to Param Mitra. Please try again.</p>
-            <button class="goal-run" style="margin-top:20px" onclick="window.runGuruAudit()">Retry</button>
+        container.innerHTML = `<div class="run-card" style="text-align:center;padding:32px">
+            <p style="color:var(--g-red);margin-bottom:16px">Could not load insights: ${e.message}</p>
+            <button class="intel-btn" onclick="window.runGuruAudit()"><span class="ms sm">refresh</span> Retry</button>
         </div>`;
+    } finally {
+        if (refreshBtn) refreshBtn.disabled = false;
     }
 };
 

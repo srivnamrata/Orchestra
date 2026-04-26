@@ -297,18 +297,74 @@ async def create_book(data: Dict):
 
 @app.post("/api/veda", tags=["Veda"])
 async def veda_command(data: Dict):
-    """Natural language book management via Veda Librarian agent."""
+    """Natural language book management — regex fast-path + LLM fallback."""
+    import re, uuid
+    from backend.database import create_book_in_db, get_all_books, get_session, update_book_progress
+    from backend.database import Book as BookModel
+
     text = data.get("text", "").strip()
     if not text:
         return {"status": "error", "message": "No text provided"}
-    if not veda_librarian:
-        return {"status": "error", "message": "Veda agent not initialized"}
+
+    text_lower = text.lower()
+
+    # ── Fast-path: "add <title>" or "I'm reading <title>" ──────────────────
+    add_match = re.search(
+        r"(?:add|reading|started?|begin|track)\s+[\"']?(.+?)[\"']?"
+        r"(?:,?\s+(?:i.?m\s+on\s+)?page\s+(\d+))?\.?\s*$",
+        text_lower
+    )
+    page_match = re.search(
+        r"(?:i.?m\s+on|on|page|at)\s+page\s+(\d+)\s+of\s+[\"']?(.+?)[\"']?\.?\s*$",
+        text_lower
+    )
+    update_match = re.search(
+        r"[\"']?(.+?)[\"']?\s*[-,]\s*(?:page|pg\.?)\s+(\d+)",
+        text_lower
+    )
+
     try:
-        result = await veda_librarian.process_command(text)
-        return {"status": "success", "result": result}
+        if add_match:
+            raw_title = add_match.group(1).strip().title()
+            page = int(add_match.group(2)) if add_match.group(2) else None
+            book_id = f"book-{uuid.uuid4().hex[:6]}"
+            b = create_book_in_db(book_id=book_id, title=raw_title,
+                                  status="in-progress" if page else "to-read", total_pages=300)
+            if page:
+                update_book_progress(book_id, page)
+            msg = f"Added '{raw_title}' to your library" + (f" at page {page}." if page else ".")
+            return {"status": "success", "result": {"message": msg, "book_id": book_id}}
+
+        if page_match or update_match:
+            m = page_match or update_match
+            page = int(m.group(1)) if page_match else int(m.group(2))
+            title_raw = (m.group(2) if page_match else m.group(1)).strip()
+            db = get_session()
+            book = db.query(BookModel).filter(BookModel.title.ilike(f"%{title_raw}%")).first()
+            db.close()
+            if book:
+                update_book_progress(book.book_id, page)
+                pct = int(page / book.total_pages * 100) if book.total_pages else 0
+                return {"status": "success", "result": {"message": f"Updated '{book.title}' to page {page} ({pct}%)."}}
+            # not found → add it
+            book_id = f"book-{uuid.uuid4().hex[:6]}"
+            create_book_in_db(book_id=book_id, title=title_raw.title(),
+                              status="in-progress", total_pages=300)
+            update_book_progress(book_id, page)
+            return {"status": "success", "result": {"message": f"Added '{title_raw.title()}' and set page to {page}."}}
+
     except Exception as e:
-        logger.error(f"Veda command error: {e}")
-        return {"status": "error", "message": str(e)}
+        logger.warning(f"Veda fast-path error: {e}")
+
+    # ── LLM fallback ────────────────────────────────────────────────────────
+    if veda_librarian:
+        try:
+            result = await veda_librarian.process_command(text)
+            return {"status": "success", "result": result}
+        except Exception as e:
+            logger.error(f"Veda LLM error: {e}")
+
+    return {"status": "error", "message": "Could not understand your request. Try: 'Add Atomic Habits, page 80'"}
 
 
 @app.post("/api/guru/audit", tags=["Guru"])

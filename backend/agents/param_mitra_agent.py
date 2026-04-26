@@ -20,30 +20,46 @@ class ParamMitraAgent:
 
     async def generate_audit(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Synthesizes a full 'Life Audit' based on the user's recent activities.
+        Generates weekly insights: specific feedback on code, communication, efficiency.
+        Training suggestions only when improvement is genuinely needed.
         """
-        prompt = f"""You are Param Mitra, a wise Guru and best friend.
-Your goal is to tell the user the BLUNT truth about their performance and potential.
+        prompt = f"""You are Param Mitra — a wise, warm, honest Guru who is also a best friend.
+Generate a weekly insight report based on this data:
 
-Context for Audit:
-- Recent Code: {context.get('git_summary', 'No recent checkins found.')}
-- Recent Emails: {context.get('email_summary', 'No recent replies.')}
-- Task Efficiency: {context.get('task_status', 'No active tasks.')}
-- Personal Goals: {context.get('goals', 'No long-term goals set.')}
+Code / Git Activity: {context.get('git_summary', 'No recent commits.')}
+Email / Communication: {context.get('email_summary', 'No recent emails.')}
+Tasks & Efficiency: {context.get('task_status', 'No task data.')}
+Reading & Goals: {context.get('goals', 'No goals set.')}
 
-Respond in a compassionate but firm 'Guru' tone.
-Output JSON:
+Rules:
+- Be specific. Reference actual data (PR titles, email threads, task names) when possible.
+- Be encouraging first. Celebrate genuine wins.
+- Only suggest a training if there is a REAL gap. If things look good, say so warmly.
+- Cheer: end with a short personal motivational line (not generic).
+
+Return ONLY valid JSON, no markdown:
 {{
-  "guru_message": "...",
-  "scores": {{ "code_mastery": 0, "communication": 0, "efficiency": 0 }},
-  "bottlenecks": ["...", "...", "..."],
-  "trainings": [
-    {{ "category": "Code", "topic": "...", "benefit": "..." }},
-    {{ "category": "Comm", "topic": "...", "benefit": "..." }},
-    {{ "category": "Soul", "topic": "...", "benefit": "..." }}
-  ],
-  "potential_unlock": "..."
+  "summary": "One sentence overall assessment of the week.",
+  "code": {{
+    "assessment": "great" | "good" | "needs_improvement",
+    "insight": "Specific observation about code quality, commit messages, PR activity this week.",
+    "training": null
+  }},
+  "communication": {{
+    "assessment": "great" | "good" | "needs_improvement",
+    "insight": "Specific observation about email tone, reply speed, clarity.",
+    "training": null
+  }},
+  "efficiency": {{
+    "assessment": "great" | "good" | "needs_improvement",
+    "insight": "Specific observation about task completion, priorities, focus.",
+    "training": null
+  }},
+  "cheer": "Short personal motivational line."
 }}
+
+If assessment is 'needs_improvement', populate training as:
+{{"topic": "Course or skill name", "why": "One sentence reason", "link_hint": "Coursera / YouTube / Book"}}
 """
         try:
             raw = await self.llm.call(prompt)

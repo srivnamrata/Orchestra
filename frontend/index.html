@@ -2647,52 +2647,23 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
 
     <div id="guru" class="view">
       <div class="workflows-container" style="padding:24px">
-        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px">
           <div class="ah-icon" style="background:var(--g-amber-light);width:40px;height:40px;flex-shrink:0">
             <span class="ms" style="color:var(--g-amber);font-size:20px">self_improvement</span>
           </div>
           <div style="flex:1">
-            <h2 style="color:var(--md-on-surface);font-size:18px;margin:0 0 3px">Param Mitra — Your Guru</h2>
-            <p style="color:var(--md-dim);margin:0;font-size:12px">Reads your git activity, emails, tasks &amp; goals. Tells you the blunt truth about your performance.</p>
+            <h2 style="color:var(--md-on-surface);font-size:18px;margin:0 0 3px">Insights from the Week</h2>
+            <p style="color:var(--md-dim);margin:0;font-size:12px">Param Mitra reads your code, emails, and tasks — then gives you honest, actionable feedback.</p>
           </div>
-          <button class="goal-run" onclick="window.runGuruAudit()"><span class="ms sm">self_improvement</span> Begin Life Audit</button>
+          <button class="intel-btn" onclick="window.runGuruAudit()" id="guru-refresh-btn">
+            <span class="ms sm">refresh</span> Refresh
+          </button>
         </div>
-
-        <div style="display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start">
-
-          <!-- Left: what Param Mitra looks at -->
-          <div class="run-card" style="padding:16px">
-            <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--md-dim);letter-spacing:1px;margin-bottom:12px">What I observe</div>
-            <div style="display:flex;flex-direction:column;gap:10px">
-              <div style="display:flex;align-items:center;gap:8px;font-size:12px">
-                <span class="ms" style="font-size:16px;color:var(--g-blue)">code</span>
-                <div><div style="font-weight:600">Code Quality</div><div style="font-size:10px;color:var(--md-dim)">Git commits &amp; PR reviews</div></div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;font-size:12px">
-                <span class="ms" style="font-size:16px;color:var(--g-violet)">mail</span>
-                <div><div style="font-weight:600">Communication</div><div style="font-size:10px;color:var(--md-dim)">Email replies &amp; tone</div></div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;font-size:12px">
-                <span class="ms" style="font-size:16px;color:var(--g-green)">event</span>
-                <div><div style="font-weight:600">Meeting Presence</div><div style="font-size:10px;color:var(--md-dim)">Calendar &amp; prep habits</div></div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;font-size:12px">
-                <span class="ms" style="font-size:16px;color:var(--g-amber)">task_alt</span>
-                <div><div style="font-weight:600">Efficiency</div><div style="font-size:10px;color:var(--md-dim)">Tasks, goals &amp; output</div></div>
-              </div>
-            </div>
+        <div id="guru-audit-container">
+          <div style="text-align:center;padding:40px;color:var(--md-dim);font-size:13px">
+            <span class="ms" style="font-size:32px;display:block;margin-bottom:10px;color:var(--g-amber)">self_improvement</span>
+            Loading your weekly insights…
           </div>
-
-          <!-- Right: audit results -->
-          <div id="guru-audit-container">
-            <div class="run-card" style="text-align:center;padding:32px">
-              <span class="ms" style="font-size:40px;color:var(--g-amber);display:block;margin-bottom:12px">self_improvement</span>
-              <div style="font-size:14px;font-weight:600;color:var(--md-on-surface);margin-bottom:6px">Ready to audit your journey</div>
-              <p style="color:var(--md-dim);font-size:12px;margin-bottom:16px">I will read your git activity, emails, tasks and goals, then give you honest feedback.</p>
-              <button class="goal-run" onclick="window.runGuruAudit()">Begin Life Audit</button>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>
