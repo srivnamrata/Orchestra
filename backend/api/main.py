@@ -115,6 +115,7 @@ email_service     = None
 proactive_monitor = None
 veda_librarian    = None
 param_mitra       = None
+debate_engine     = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -123,7 +124,7 @@ async def lifespan(app: FastAPI):
     This is the safest way to initialize resources on Cloud Run.
     """
     global llm_service, pubsub_service, knowledge_graph, critic_agent, security_auditor, orchestrator
-    global github_service, slack_service, email_service, proactive_monitor, veda_librarian, param_mitra
+    global github_service, slack_service, email_service, proactive_monitor, veda_librarian, param_mitra, debate_engine
 
     logger.info("🚀 Multi-Agent Productivity Assistant Starting (Lifespan)")
     
@@ -183,8 +184,18 @@ async def lifespan(app: FastAPI):
         async def execute(self, step, prev): return {"status": "mock_success"}
     orchestrator.register_sub_agent("task",      MockGenericAgent())
     orchestrator.register_sub_agent("knowledge", MockGenericAgent())
+    orchestrator.register_sub_agent("news",      NewsAgent(knowledge_graph))
 
-    # 3. Initialize Database
+    # 3. Initialize Debate Engine with ready agents
+    agents_for_debate = {
+        "security_auditor": security_auditor,
+        "knowledge_agent": orchestrator.sub_agents.get("knowledge"),
+        "task_agent": orchestrator.sub_agents.get("task"),
+        "scheduler_agent": orchestrator.sub_agents.get("scheduler")
+    }
+    debate_engine = MultiAgentDebateEngine(agents_for_debate)
+
+    # 4. Initialize Database
     try:
         from backend.database import init_db
         init_db()
@@ -207,37 +218,6 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
-
-# Register sub-agents (scheduler, task executor, etc.)
-# These would be actual agent implementations
-class MockTaskAgent:
-    async def execute(self, step, previous_results):
-        logger.info(f"MockTaskAgent executing: {step.get('name')}")
-        return {"task_created": True}
-
-class MockKnowledgeAgent:
-    async def execute(self, step, previous_results):
-        logger.info(f"MockKnowledgeAgent executing: {step.get('name')}")
-        return {"context_gathered": True}
-
-orchestrator.register_sub_agent("scheduler", SchedulerAgent(llm_service))
-orchestrator.register_sub_agent("task", MockTaskAgent())
-orchestrator.register_sub_agent("knowledge", MockKnowledgeAgent())
-orchestrator.register_sub_agent("librarian", LibrarianAgent(llm_service))
-
-# Register new real agents
-orchestrator.register_sub_agent("research", ResearchAgent(knowledge_graph))
-orchestrator.register_sub_agent("news", NewsAgent(knowledge_graph))
-
-# Initialize debate engine with registered agents
-agents_for_debate = {
-    "security_auditor": security_auditor,
-    "knowledge_agent": orchestrator.sub_agents.get("knowledge"),
-    "task_agent": orchestrator.sub_agents.get("task"),
-    "scheduler_agent": orchestrator.sub_agents.get("scheduler")
-}
-debate_engine = MultiAgentDebateEngine(agents_for_debate)
-
 
 # ============================================================================
 # API Models
