@@ -1,3 +1,4 @@
+"""
 Alexandria Agent — The Librarian (Rebranded to Veda)
 =========================================
 Manages your reading list, tracks page progress, and organizes your digital library.
