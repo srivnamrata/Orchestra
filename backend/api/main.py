@@ -6,6 +6,7 @@ Defines API endpoints for the Multi-Agent Productivity Assistant.
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, AsyncGenerator
 import logging
@@ -70,6 +71,19 @@ app = FastAPI(
     title="Multi-Agent Productivity Assistant",
     description="AI-powered workflow orchestration with autonomous planning and execution",
     version="1.0.0"
+)
+
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "*").split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Mount frontend directory for static assets

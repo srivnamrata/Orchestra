@@ -4,6 +4,45 @@
 
 console.log('🔧 app.js script loaded');
 
+const ORCHESTRA_API_BASE = (() => {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const queryBase = params.get('api');
+        if (queryBase) {
+            localStorage.setItem('orchestraApiBase', queryBase);
+        }
+
+        const savedBase = localStorage.getItem('orchestraApiBase');
+        const base = queryBase || savedBase || window.location.origin;
+        return base.replace(/\/$/, '');
+    } catch (_) {
+        return window.location.origin;
+    }
+})();
+window.ORCHESTRA_API_BASE = ORCHESTRA_API_BASE;
+
+function orchestraApiUrl(url) {
+    if (/^https?:\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
+        return url;
+    }
+    return `${ORCHESTRA_API_BASE}${url.startsWith('/') ? url : `/${url}`}`;
+}
+
+const _orchestraFetch = window.fetch.bind(window);
+window.fetch = (input, init) => {
+    if (typeof input === 'string') {
+        return _orchestraFetch(orchestraApiUrl(input), init);
+    }
+    return _orchestraFetch(input, init);
+};
+
+const _OrchestraEventSource = window.EventSource;
+window.EventSource = class OrchestraEventSource extends _OrchestraEventSource {
+    constructor(url, config) {
+        super(orchestraApiUrl(url), config);
+    }
+};
+
 const commandPalette = {
     isOpen: false,
     highlightedIndex: 0,

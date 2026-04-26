@@ -2209,7 +2209,21 @@ function runDemo(type){
       .catch(()=>_feedMsg('AUDITOR','var(--g-teal)','var(--g-teal-light)','Vibe Check: backend unavailable.'));
   } else if(type==='debate'){
     _feedMsg('ORCHESTRATOR','var(--g-green)','var(--g-green-light)','Agent Debate initiated — Orchestrator vs Critic…');
-    fetch('/debate/initiate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic:'Optimal workflow strategy',agents:['orchestrator','critic']})})
+    fetch('/debate/initiate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        action:{
+          id:'ui-debate-001',
+          name:'Optimal workflow strategy',
+          type:'workflow',
+          impact:'medium'
+        },
+        executor_agent:'orchestrator',
+        reasoning:'Evaluate the best approach for the current workflow strategy.',
+        issue_context:'UI-triggered debate from the redesigned dashboard.'
+      })
+    })
       .then(r=>r.json())
       .then(d=>{
         const txt = d.message || d.winner ? `Debate complete — winner: ${d.winner}` : 'Debate complete.';
@@ -2257,23 +2271,120 @@ const traceData={
   ],
 };
 let scanRunning=false,scanTimers=[],activeTraceAgent='orchestrator';
+let liveTraceSource=null;
+
+function getApiBase() {
+  try {
+    return (window.ORCHESTRA_API_BASE || localStorage.getItem('orchestraApiBase') || window.location.origin).replace(/\/$/, '');
+  } catch (_) {
+    return window.location.origin;
+  }
+}
+
+function apiUrl(path) {
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${getApiBase()}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function appendLiveTraceLine(payload) {
+  const traceEl = document.getElementById('trace');
+  if (!traceEl) return;
+
+  const div = document.createElement('div');
+  div.className = 'trace-line';
+
+  const agentLabel = payload.role || payload.agent || 'Agent';
+  const message = payload.message || '';
+  div.innerHTML = `<span class="trace-agent">${agentLabel}</span><span> → ${message}${payload.type === 'scan_complete' ? ' <span class="trace-cursor"></span>' : ''}</span>`;
+  traceEl.appendChild(div);
+  traceEl.scrollTop = traceEl.scrollHeight;
+}
 
 function runScan(){
-  if(scanRunning)return; scanRunning=true;
-  document.getElementById('scanDot').className='scan-dot running';
-  document.getElementById('scanLabel').textContent='Running…';
-  document.getElementById('runScanBtn').disabled=true;
-  document.getElementById('traceIdle').style.display='none';
-  const traceEl=document.getElementById('trace'); traceEl.style.display='block'; traceEl.innerHTML='';
-  document.getElementById('bottlenecks').style.opacity='0.3';
-  renderTraceLines(activeTraceAgent,()=>{
-    document.getElementById('scanDot').className='scan-dot done';
-    document.getElementById('scanLabel').textContent='Done';
-    document.getElementById('runScanBtn').disabled=false;
-    document.getElementById('bottlenecks').style.opacity='1';
-    document.getElementById('bottlenecks').style.transition='opacity 0.5s';
-    scanRunning=false;
-  });
+  if(scanRunning) return;
+  scanRunning = true;
+  const dot = document.getElementById('scanDot');
+  const label = document.getElementById('scanLabel');
+  const runBtn = document.getElementById('runScanBtn');
+  const traceEl = document.getElementById('trace');
+  const idleEl = document.getElementById('traceIdle');
+  const bottlenecks = document.getElementById('bottlenecks');
+
+  if (dot) dot.className = 'scan-dot running';
+  if (label) label.textContent = 'Running…';
+  if (runBtn) runBtn.disabled = true;
+  if (idleEl) idleEl.style.display = 'none';
+  if (traceEl) {
+    traceEl.style.display = 'block';
+    traceEl.innerHTML = '';
+  }
+  if (bottlenecks) bottlenecks.style.opacity = '0.3';
+
+  if (liveTraceSource) {
+    liveTraceSource.close();
+    liveTraceSource = null;
+  }
+
+  try {
+    liveTraceSource = new EventSource(apiUrl('/agent/reasoning/stream'));
+
+    liveTraceSource.addEventListener('reasoning', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        appendLiveTraceLine(payload);
+      } catch (_) {}
+    });
+
+    liveTraceSource.addEventListener('done', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        if (dot) dot.className = 'scan-dot done';
+        if (label) label.textContent = `Done${typeof payload.notifications === 'number' ? ` · ${payload.notifications} alert(s)` : ''}`;
+        if (runBtn) runBtn.disabled = false;
+        if (bottlenecks) {
+          bottlenecks.style.opacity = '1';
+          bottlenecks.style.transition = 'opacity 0.5s';
+        }
+        scanRunning = false;
+        if (liveTraceSource) {
+          liveTraceSource.close();
+          liveTraceSource = null;
+        }
+      } catch (_) {}
+    });
+
+    liveTraceSource.addEventListener('ping', () => {});
+
+    liveTraceSource.onerror = () => {
+      if (liveTraceSource) {
+        liveTraceSource.close();
+        liveTraceSource = null;
+      }
+      if (runBtn) runBtn.disabled = false;
+      if (label) label.textContent = 'Connection lost';
+      if (dot) dot.className = 'scan-dot error';
+      if (bottlenecks) bottlenecks.style.opacity = '1';
+      scanRunning = false;
+      // Fall back to the animated mock trace if the live stream is unavailable.
+      renderTraceLines(activeTraceAgent, () => {
+        if (dot) dot.className = 'scan-dot done';
+        if (label) label.textContent = 'Done';
+        if (runBtn) runBtn.disabled = false;
+        if (bottlenecks) bottlenecks.style.opacity = '1';
+        scanRunning = false;
+      });
+    };
+  } catch (_) {
+    if (runBtn) runBtn.disabled = false;
+    scanRunning = false;
+    renderTraceLines(activeTraceAgent, () => {
+      if (dot) dot.className = 'scan-dot done';
+      if (label) label.textContent = 'Done';
+      if (runBtn) runBtn.disabled = false;
+      if (bottlenecks) bottlenecks.style.opacity = '1';
+      scanRunning = false;
+    });
+  }
 }
 function renderTraceLines(agent,onDone){
   const traceEl=document.getElementById('trace'); traceEl.innerHTML='';
@@ -2297,6 +2408,10 @@ function switchTraceAgent(agent,btn){
 }
 function clearScan(){
   scanTimers.forEach(t=>clearTimeout(t));scanTimers=[];scanRunning=false;
+  if (liveTraceSource) {
+    liveTraceSource.close();
+    liveTraceSource = null;
+  }
   document.getElementById('scanDot').className='scan-dot idle';
   document.getElementById('scanLabel').textContent='Idle';
   document.getElementById('runScanBtn').disabled=false;
@@ -2771,11 +2886,39 @@ let notifOpen = false;
 let notifFilter = 'all';
 let notifData = [...NOTIF_DATA];
 
+async function syncBackendNotifications() {
+  try {
+    const res = await fetch('/agent/monitor/notifications');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!Array.isArray(data.notifications)) return;
+
+    notifData = data.notifications.map((n) => ({
+      id: n.id || `notif-${Date.now()}`,
+      type: 'agent',
+      unread: true,
+      icon: n.severity === 'high' ? '🚨' : n.severity === 'medium' ? '⚠️' : 'ℹ️',
+      iconBg: n.severity === 'high' ? 'var(--g-red-light)' : 'var(--g-blue-light)',
+      title: n.title || 'Agent notification',
+      desc: n.message || '',
+      time: n.created_at ? new Date(n.created_at).toLocaleString() : 'Just now',
+      action: n.actions && n.actions.length ? n.actions[0] : null,
+      actionFn: () => {}
+    }));
+
+    updateNotifDot();
+    if (notifOpen) renderNotifs();
+  } catch (_) {}
+}
+
 function toggleNotifs() {
   notifOpen = !notifOpen;
   document.getElementById('notifPanel').classList.toggle('open', notifOpen);
   document.getElementById('notifBackdrop').classList.toggle('open', notifOpen);
-  if(notifOpen) renderNotifs();
+  if(notifOpen) {
+    syncBackendNotifications();
+    renderNotifs();
+  }
 }
 
 function filterNotifs(filter, btn) {
@@ -2800,7 +2943,12 @@ function dismissNotif(id) {
 function updateNotifDot() {
   const unread = notifData.filter(n => n.unread).length;
   const dot = document.getElementById('notifDot');
+  const mobileBadge = document.getElementById('mobileNotifBadge');
   if(dot) dot.style.display = unread > 0 ? 'block' : 'none';
+  if(mobileBadge) {
+    mobileBadge.style.display = unread > 0 ? 'flex' : 'none';
+    if (unread > 0) mobileBadge.textContent = unread > 99 ? '99+' : String(unread);
+  }
 }
 
 function renderNotifs() {
