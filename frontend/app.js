@@ -768,6 +768,16 @@ function downloadBlob(content, mimeType, filename) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+window.useSuggestion = function(text) {
+    const inp = document.getElementById('nl-goal-input');
+    if (inp) {
+        inp.value = text;
+        window.autoExpandGoal(inp);
+        inp.focus();
+        activityFeed.log(`Selected starter prompt: "${text}"`, 'info', 'SYSTEM');
+    }
+};
+
 window.setGoal = function(t) {
     const inp = document.getElementById('nl-goal-input');
     if (inp) { inp.value = t; inp.focus(); window.autoExpandGoal(inp); }
