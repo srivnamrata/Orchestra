@@ -2421,9 +2421,114 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
       </div>  <!-- /right-col -->
     </div>    <!-- /main-grid -->
 
-    </div>  <!-- /dashboard view -->
 
-    <!-- ═══ TOP-LEVEL VIEWS (siblings of dashboard) ═══════════════════════ -->
+    <!-- Intelligence Panel -->
+    <div class="intel-panel anim a6">
+      <div class="intel-head">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="intel-title">🧩 Intelligence</div>
+          <div class="intel-tabs">
+            <button class="intel-tab active" onclick="fetchIntel('news',this)">📰 News <span class="intel-tab-count">3</span></button>
+            <button class="intel-tab" onclick="fetchIntel('research',this)">🔬 Research <span class="intel-tab-count">4</span></button>
+            <button class="intel-tab" onclick="fetchIntel('tasks',this)">✅ Tasks <span class="intel-tab-count">6</span></button>
+            <button class="intel-tab" onclick="fetchIntel('schedule',this)">📅 Schedule <span class="intel-tab-count">4</span></button>
+            <button class="intel-tab" onclick="fetchIntel('github',this)">🐙 GitHub <span class="intel-tab-count">2</span></button>
+            <button class="intel-tab" onclick="fetchIntel('slack',this)">💬 Slack <span class="intel-tab-count">2</span></button>
+            <button class="intel-tab" onclick="fetchIntel('email',this)">📧 Email <span class="intel-tab-count">1</span></button>
+          </div>
+        </div>
+        <div class="intel-head-right">
+          <button class="intel-btn" onclick="playAudio()"><span class="ms sm">headphones</span> Audio Summary</button>
+          <button class="intel-btn primary" onclick="fetchIntel()"><span class="ms sm">refresh</span> Fetch Latest</button>
+        </div>
+      </div>
+      <div class="intel-body">
+
+        <div class="intel-pane active" id="pane-news">
+          <div class="intel-source-label" id="news-source-label">AI &amp; ML News · Loading…</div>
+          <div class="news-grid" id="hn-news-grid">
+            <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--md-dim);font-size:13px">
+              <span class="ms" style="font-size:24px;display:block;margin-bottom:8px">rss_feed</span>
+              Fetching live AI &amp; ML stories from HackerNews, DEV.to, Reddit ML…
+            </div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-research">
+          <div class="intel-source-label" id="research-source-label">arXiv · Loading…</div>
+          <div class="news-grid" style="grid-template-columns:repeat(4,1fr)" id="arxiv-research-grid">
+            <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--md-dim);font-size:13px">
+              <span class="ms" style="font-size:24px;display:block;margin-bottom:8px">science</span>
+              Fetching latest arXiv &amp; Semantic Scholar papers…
+            </div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-tasks">
+          <div class="intel-source-label">Your Tasks · 6 items</div>
+          <div class="task-intel-grid">
+            <div class="task-intel-item"><div class="ti-check done">✓</div><div><div class="ti-title done-text">Write Database Schema Documentation</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-green-light);color:var(--g-green)">done</span><span class="ti-due">2h ago</span></div></div></div>
+            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Review API Documentation draft</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-amber-light);color:var(--g-amber)">high</span><span class="ti-due">Due today</span></div></div></div>
+            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Approve UI Redesign component list</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-blue-light);color:var(--g-blue)">medium</span><span class="ti-due">Due tomorrow</span></div></div></div>
+            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Schedule Q2 board review meeting</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-red-light);color:var(--g-red)">critical</span><span class="ti-due">Overdue 1d</span></div></div></div>
+            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Review Critic Replan suggestions</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-amber-light);color:var(--g-amber)">high</span><span class="ti-due">This week</span></div></div></div>
+            <div class="task-intel-item"><div class="ti-check done">✓</div><div><div class="ti-title done-text">Research SaaS pricing benchmarks</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-green-light);color:var(--g-green)">done</span><span class="ti-due">Yesterday</span></div></div></div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-schedule">
+          <div class="intel-source-label">Today · Saturday 25 Apr 2026</div>
+          <div class="schedule-grid">
+            <div class="sched-item"><div class="sched-time">09:00</div><div><div class="sched-name">Morning standup — Engineering</div><div class="sched-detail">15 min · Zoom · 6 attendees</div></div><span class="sched-tag" style="background:var(--g-green-light);color:var(--g-green)">✓ Done</span></div>
+            <div class="sched-item now"><div class="sched-time">14:00</div><div><div class="sched-name">API Documentation review</div><div class="sched-detail">30 min · Google Meet · 3 attendees</div></div><span class="sched-tag" style="background:var(--g-green-light);color:var(--g-green);border:1px solid rgba(30,142,62,0.3)">● Now</span></div>
+            <div class="sched-item"><div class="sched-time">15:30</div><div><div class="sched-name">UI Redesign kickoff — Product &amp; Eng</div><div class="sched-detail">60 min · Google Meet · 8 attendees</div></div><span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span></div>
+            <div class="sched-item"><div class="sched-time">17:00</div><div><div class="sched-name">1:1 — Q2 planning</div><div class="sched-detail">30 min · In-person</div></div><span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span></div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-github">
+          <div class="intel-source-label">GitHub · Repository Activity</div>
+          <div class="news-grid">
+            <div class="news-card nc-github" style="border-left:4px solid var(--md-on-surface)">
+              <div class="news-source-row"><div class="news-favicon" style="background:#24292e;color:white">G</div><span class="news-source-name">orchestra-core</span></div>
+              <div class="news-title">PR #42: Integration with Vertex AI Gemini 1.5</div>
+              <div class="news-meta" style="color:var(--g-green)">✓ Checks passed · 2 approvals</div>
+            </div>
+            <div class="news-card nc-github" style="border-left:4px solid var(--md-on-surface)">
+              <div class="news-source-row"><div class="news-favicon" style="background:#24292e;color:white">G</div><span class="news-source-name">orchestra-ui</span></div>
+              <div class="news-title">Issue #108: Mobile responsive dashboard navigation</div>
+              <div class="news-meta" style="color:var(--g-amber)">⚠️ Blocked by design review</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-slack">
+          <div class="intel-source-label">Slack · #engineering-hq</div>
+          <div class="task-intel-grid">
+            <div class="task-intel-item">
+              <div class="ti-check" style="background:var(--g-violet); color:white">#</div>
+              <div><div class="ti-title">Discussed API rate limits for the new crawler</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-violet-light);color:var(--g-violet)">summarized</span></div></div>
+            </div>
+            <div class="task-intel-item">
+              <div class="ti-check" style="background:var(--g-violet); color:white">#</div>
+              <div><div class="ti-title">Confirmed deployment window for v1.2.0</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-violet-light);color:var(--g-violet)">decision</span></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-email">
+          <div class="intel-source-label">Gmail · Urgent Summaries</div>
+          <div class="task-intel-grid">
+            <div class="task-intel-item">
+              <div class="ti-check" style="background:var(--g-red); color:white">M</div>
+              <div><div class="ti-title">Client feedback regarding the Q1 report latency</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-red-light);color:var(--g-red)">high priority</span></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    </div> <!-- /#dashboard -->
 
     <div id="agents" class="view">
       <div class="workflows-container" style="padding:24px">
@@ -2581,114 +2686,6 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
         </div>
       </div>
     </div>
-
-    <!-- Intelligence Panel -->
-    <div class="intel-panel anim a6">
-      <div class="intel-head">
-        <div style="display:flex;align-items:center;gap:14px">
-          <div class="intel-title">🧩 Intelligence</div>
-          <div class="intel-tabs">
-            <button class="intel-tab active" onclick="fetchIntel('news',this)">📰 News <span class="intel-tab-count">3</span></button>
-            <button class="intel-tab" onclick="fetchIntel('research',this)">🔬 Research <span class="intel-tab-count">4</span></button>
-            <button class="intel-tab" onclick="fetchIntel('tasks',this)">✅ Tasks <span class="intel-tab-count">6</span></button>
-            <button class="intel-tab" onclick="fetchIntel('schedule',this)">📅 Schedule <span class="intel-tab-count">4</span></button>
-            <button class="intel-tab" onclick="fetchIntel('github',this)">🐙 GitHub <span class="intel-tab-count">2</span></button>
-            <button class="intel-tab" onclick="fetchIntel('slack',this)">💬 Slack <span class="intel-tab-count">2</span></button>
-            <button class="intel-tab" onclick="fetchIntel('email',this)">📧 Email <span class="intel-tab-count">1</span></button>
-          </div>
-        </div>
-        <div class="intel-head-right">
-          <button class="intel-btn" onclick="playAudio()"><span class="ms sm">headphones</span> Audio Summary</button>
-          <button class="intel-btn primary" onclick="fetchIntel()"><span class="ms sm">refresh</span> Fetch Latest</button>
-        </div>
-      </div>
-      <div class="intel-body">
-
-        <div class="intel-pane active" id="pane-news">
-          <div class="intel-source-label" id="news-source-label">AI &amp; ML News · Loading…</div>
-          <div class="news-grid" id="hn-news-grid">
-            <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--md-dim);font-size:13px">
-              <span class="ms" style="font-size:24px;display:block;margin-bottom:8px">rss_feed</span>
-              Fetching live AI &amp; ML stories from HackerNews, DEV.to, Reddit ML…
-            </div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-research">
-          <div class="intel-source-label" id="research-source-label">arXiv · Loading…</div>
-          <div class="news-grid" style="grid-template-columns:repeat(4,1fr)" id="arxiv-research-grid">
-            <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--md-dim);font-size:13px">
-              <span class="ms" style="font-size:24px;display:block;margin-bottom:8px">science</span>
-              Fetching latest arXiv &amp; Semantic Scholar papers…
-            </div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-tasks">
-          <div class="intel-source-label">Your Tasks · 6 items</div>
-          <div class="task-intel-grid">
-            <div class="task-intel-item"><div class="ti-check done">✓</div><div><div class="ti-title done-text">Write Database Schema Documentation</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-green-light);color:var(--g-green)">done</span><span class="ti-due">2h ago</span></div></div></div>
-            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Review API Documentation draft</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-amber-light);color:var(--g-amber)">high</span><span class="ti-due">Due today</span></div></div></div>
-            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Approve UI Redesign component list</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-blue-light);color:var(--g-blue)">medium</span><span class="ti-due">Due tomorrow</span></div></div></div>
-            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Schedule Q2 board review meeting</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-red-light);color:var(--g-red)">critical</span><span class="ti-due">Overdue 1d</span></div></div></div>
-            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Review Critic Replan suggestions</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-amber-light);color:var(--g-amber)">high</span><span class="ti-due">This week</span></div></div></div>
-            <div class="task-intel-item"><div class="ti-check done">✓</div><div><div class="ti-title done-text">Research SaaS pricing benchmarks</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-green-light);color:var(--g-green)">done</span><span class="ti-due">Yesterday</span></div></div></div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-schedule">
-          <div class="intel-source-label">Today · Saturday 25 Apr 2026</div>
-          <div class="schedule-grid">
-            <div class="sched-item"><div class="sched-time">09:00</div><div><div class="sched-name">Morning standup — Engineering</div><div class="sched-detail">15 min · Zoom · 6 attendees</div></div><span class="sched-tag" style="background:var(--g-green-light);color:var(--g-green)">✓ Done</span></div>
-            <div class="sched-item now"><div class="sched-time">14:00</div><div><div class="sched-name">API Documentation review</div><div class="sched-detail">30 min · Google Meet · 3 attendees</div></div><span class="sched-tag" style="background:var(--g-green-light);color:var(--g-green);border:1px solid rgba(30,142,62,0.3)">● Now</span></div>
-            <div class="sched-item"><div class="sched-time">15:30</div><div><div class="sched-name">UI Redesign kickoff — Product &amp; Eng</div><div class="sched-detail">60 min · Google Meet · 8 attendees</div></div><span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span></div>
-            <div class="sched-item"><div class="sched-time">17:00</div><div><div class="sched-name">1:1 — Q2 planning</div><div class="sched-detail">30 min · In-person</div></div><span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span></div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-github">
-          <div class="intel-source-label">GitHub · Repository Activity</div>
-          <div class="news-grid">
-            <div class="news-card nc-github" style="border-left:4px solid var(--md-on-surface)">
-              <div class="news-source-row"><div class="news-favicon" style="background:#24292e;color:white">G</div><span class="news-source-name">orchestra-core</span></div>
-              <div class="news-title">PR #42: Integration with Vertex AI Gemini 1.5</div>
-              <div class="news-meta" style="color:var(--g-green)">✓ Checks passed · 2 approvals</div>
-            </div>
-            <div class="news-card nc-github" style="border-left:4px solid var(--md-on-surface)">
-              <div class="news-source-row"><div class="news-favicon" style="background:#24292e;color:white">G</div><span class="news-source-name">orchestra-ui</span></div>
-              <div class="news-title">Issue #108: Mobile responsive dashboard navigation</div>
-              <div class="news-meta" style="color:var(--g-amber)">⚠️ Blocked by design review</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-slack">
-          <div class="intel-source-label">Slack · #engineering-hq</div>
-          <div class="task-intel-grid">
-            <div class="task-intel-item">
-              <div class="ti-check" style="background:var(--g-violet); color:white">#</div>
-              <div><div class="ti-title">Discussed API rate limits for the new crawler</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-violet-light);color:var(--g-violet)">summarized</span></div></div>
-            </div>
-            <div class="task-intel-item">
-              <div class="ti-check" style="background:var(--g-violet); color:white">#</div>
-              <div><div class="ti-title">Confirmed deployment window for v1.2.0</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-violet-light);color:var(--g-violet)">decision</span></div></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-email">
-          <div class="intel-source-label">Gmail · Urgent Summaries</div>
-          <div class="task-intel-grid">
-            <div class="task-intel-item">
-              <div class="ti-check" style="background:var(--g-red); color:white">M</div>
-              <div><div class="ti-title">Client feedback regarding the Q1 report latency</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-red-light);color:var(--g-red)">high priority</span></div></div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-    </div> <!-- /#dashboard -->
 
     <div id="workflows" class="view">
       <div class="workflows-container" style="padding:24px">
