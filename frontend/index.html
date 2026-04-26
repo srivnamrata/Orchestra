@@ -1625,9 +1625,9 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
     <div class="nav-item"><span class="ms">folder_open</span> Outputs</div>
     <div class="nav-label">Intelligence</div>
     <div class="nav-item" onclick="window.switchView('trace')" style="cursor:pointer"><span class="ms">psychology</span> Agent Reasoning</div>
-    <div class="nav-item"><span class="ms">verified</span> Vibe Checks <span class="nav-badge nb-blue">new</span></div>
-    <div class="nav-item"><span class="ms">swords</span> Debates</div>
-    <div class="nav-item"><span class="ms">shield</span> Safety Audit</div>
+    <div class="nav-item" onclick="window.switchView('vibe-checks')"><span class="ms">verified</span> Vibe Checks <span class="nav-badge nb-blue">new</span></div>
+    <div class="nav-item" onclick="window.switchView('debates')"><span class="ms">swords</span> Debates</div>
+    <div class="nav-item" onclick="window.switchView('settings')"><span class="ms">shield</span> Safety Audit</div>
     <div class="nav-label">Integrations</div>
     <div class="nav-item"><span class="ms">code</span> GitHub <span class="nav-badge nb-gray">stub</span></div>
     <div class="nav-item"><span class="ms">forum</span> Slack <span class="nav-badge nb-gray">stub</span></div>
@@ -2056,6 +2056,42 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
         <div class="ms" style="font-size:48px; color:var(--g-violet); margin-bottom:20px">psychology</div>
         <h2 style="color:var(--md-on-surface)">Agent Reasoning</h2>
         <p style="color:var(--md-dim)">Deep-dive into how agents are thinking and planning.</p>
+      </div>
+    <div id="vibe-checks" class="view">
+      <div class="workflows-container" style="padding:24px">
+        <div class="view-header" style="margin-bottom:24px">
+          <h2 style="color:var(--md-on-surface)">🛡️ Security & Strategy Audits</h2>
+          <p style="color:var(--md-dim)">Cross-agent vibe-checking, intent alignment, and safety reports.</p>
+        </div>
+        <div id="vibe-check-results" class="vibe-grid">
+           <div class="empty-state" style="padding:40px; text-align:center; background:var(--md-surface-1); border-radius:16px">
+              <div class="ms" style="font-size:48px; color:var(--md-dim); margin-bottom:12px">verified_user</div>
+              <p style="color:var(--md-dim)">No audits conducted yet. Trigger a Vibe Check to see results.</p>
+           </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="debates" class="view">
+      <div class="workflows-container" style="padding:24px">
+        <div class="view-header" style="margin-bottom:24px">
+          <h2 style="color:var(--md-on-surface)">🗣️ Live Agent Debates</h2>
+          <p style="color:var(--md-dim)">Multi-agent consensus building and survival fitness evaluation.</p>
+        </div>
+        <div id="debate-list" class="debate-grid">
+           <div class="empty-state" style="padding:40px; text-align:center; background:var(--md-surface-1); border-radius:16px">
+              <div class="ms" style="font-size:48px; color:var(--md-dim); margin-bottom:12px">forum</div>
+              <p style="color:var(--md-dim)">No active debates. Debates trigger when high-stakes decisions require consensus.</p>
+           </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="settings" class="view">
+      <div style="padding:40px; text-align:center">
+        <div class="ms" style="font-size:48px; color:var(--md-dim); margin-bottom:20px">settings</div>
+        <h2 style="color:var(--md-on-surface)">Settings</h2>
+        <p style="color:var(--md-dim)">Configuration and profile management.</p>
       </div>
     </div>
   </div>

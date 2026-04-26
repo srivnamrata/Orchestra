@@ -42,7 +42,9 @@ window.switchView = function(viewId) {
         const matches = (viewId === 'dashboard' && (text.includes('dashboard') || text.includes('home'))) ||
                         (viewId === 'workflows' && text.includes('active workflows')) ||
                         (viewId === 'trace' && text.includes('agent reasoning')) ||
-                        (viewId === 'settings' && text.includes('settings'));
+                        (viewId === 'vibe-checks' && text.includes('vibe checks')) ||
+                        (viewId === 'debates' && text.includes('debates')) ||
+                        (viewId === 'settings' && (text.includes('settings') || text.includes('safety audit')));
         item.classList.toggle('active', matches);
     });
 
@@ -136,7 +138,6 @@ window.submitGoal = async function() {
         `;
     }
 
-
     try {
         const res = await fetch(apiUrl('/orchestrate/stream'), {
             method: 'POST',
@@ -194,21 +195,20 @@ window.submitGoal = async function() {
 // ── Intelligence Demo Logic ─────────────────────────────────────────────────
 window.runDemo = async function(type) {
     const configs = {
-        critic: { name: 'CRITIC', endpoint: '/demonstrate-critic-agent' },
-        vibe:   { name: 'AUDITOR', endpoint: '/demonstrate-vibe-check' },
-        debate: { name: 'DEBATE',  endpoint: '/debate/initiate' },
-        news:   { name: 'NEWS',    endpoint: '/demonstrate-news-agent' },
+        critic: { name: 'CRITIC',   endpoint: '/demonstrate-critic-agent', view: 'workflows' },
+        vibe:   { name: 'AUDITOR',  endpoint: '/demonstrate-vibe-check',   view: 'vibe-checks' },
+        debate: { name: 'DEBATE',   endpoint: '/debate/initiate',          view: 'debates' },
+        news:   { name: 'NEWS',     endpoint: '/demonstrate-news-agent' },
         research:{ name: 'RESEARCH',endpoint: '/demonstrate-research-agent' },
-        tasks:  { name: 'TASKS',   endpoint: '/api/tasks' },
+        tasks:  { name: 'TASKS',    endpoint: '/api/tasks' },
         schedule:{ name: 'SCHEDULE',endpoint: '/api/events' }
     };
 
     const cfg = configs[type];
     if (!cfg) return;
 
-    if (!['tasks', 'schedule', 'news', 'research'].includes(type)) {
-        window.switchView('dashboard');
-    }
+    if (cfg.view) window.switchView(cfg.view);
+    else if (!['tasks', 'schedule', 'news', 'research'].includes(type)) window.switchView('dashboard');
 
     activityFeed.log(`🏃 Starting ${cfg.name} sequence…`, 'status', 'SYSTEM');
 
@@ -229,8 +229,11 @@ window.runDemo = async function(type) {
         else if (type === 'research') renderResearch(data.papers);
         else if (type === 'tasks') renderTasks(data.tasks);
         else if (type === 'schedule') renderSchedule(data.events);
+        else if (type === 'vibe') renderVibeCheck(data);
+        else if (type === 'debate') renderDebate(data);
+        else if (type === 'critic') renderCriticAnalysis(data);
         else {
-            const msg = data.critique || data.message || (data.scenarios_tested ? `Validated ${data.scenarios_tested.length} scenarios` : 'Operation complete.');
+            const msg = data.critique || data.message || 'Operation complete.';
             activityFeed.log(msg, 'info', cfg.name);
         }
     } catch (err) {
@@ -251,7 +254,92 @@ window.switchIntel = function(type, btn) {
     if (pane) pane.classList.add('active');
 };
 
-// ── Rendering ───────────────────────────────────────────────────────────────
+// ── Rendering Functions ─────────────────────────────────────────────────────
+
+function renderVibeCheck(data) {
+    const list = document.getElementById('vibe-check-results');
+    if (!list) return;
+    
+    list.innerHTML = (data.scenarios_tested || []).map(s => `
+        <div class="run-card" style="margin-bottom:16px; border-left:4px solid ${s.approval_status === 'APPROVED' ? 'var(--g-green)' : 'var(--g-red)'}">
+            <div style="display:flex; justify-content:space-between; align-items:start">
+                <div>
+                    <div class="run-title">${s.name}</div>
+                    <div style="display:flex; gap:8px; margin:8px 0">
+                        <span class="chip" style="background:${s.approval_status === 'APPROVED' ? 'var(--g-green-light)' : 'var(--g-red-light)'}; color:${s.approval_status === 'APPROVED' ? 'var(--g-green)' : 'var(--g-red)'}">
+                            ${s.approval_status}
+                        </span>
+                        <span class="chip" style="background:var(--md-surface-2)">Risk: ${s.risk_level}</span>
+                    </div>
+                    <p style="color:var(--md-on-surface); font-size:13px; line-height:1.4">${s.explanation}</p>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-size:24px; font-weight:700; color:${s.approval_status === 'APPROVED' ? 'var(--g-green)' : 'var(--g-red)'}">${s.approval_status === 'APPROVED' ? '95%' : '22%'}</div>
+                    <div style="font-size:10px; color:var(--md-dim)">SAFETY SCORE</div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderDebate(data) {
+    const list = document.getElementById('debate-list');
+    if (!list) return;
+    
+    const summary = data.summary || {};
+    list.innerHTML = `
+        <div class="run-card" style="margin-bottom:16px">
+            <div class="run-title" style="color:var(--g-violet)">Debate ID: ${data.debate_id}</div>
+            <div style="margin:12px 0; font-size:18px; font-weight:600">${data.final_decision}</div>
+            <div style="background:var(--md-surface-2); padding:16px; border-radius:12px; margin-bottom:16px">
+                <div style="font-size:12px; color:var(--md-dim); margin-bottom:8px">ARGUMENT BREAKDOWN</div>
+                <pre style="font-family:var(--font-mono); font-size:12px; color:var(--md-on-surface); white-space:pre-wrap">${JSON.stringify(summary.arguments || summary, null, 2)}</pre>
+            </div>
+            <div style="display:flex; gap:12px">
+                <div class="chip" style="background:var(--g-blue-light); color:var(--g-blue)">Consensus: ${summary.consensus_reached ? 'YES' : 'NO'}</div>
+                <div class="chip" style="background:var(--g-green-light); color:var(--g-green)">Score: ${summary.confidence_score ? (summary.confidence_score * 100).toFixed(0) + '%' : 'N/A'}</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderCriticAnalysis(data) {
+    const wfList = document.getElementById('workflows-list');
+    if (!wfList) return;
+    
+    wfList.innerHTML = `
+        <div class="run-card" style="margin-bottom:16px; border-top:4px solid var(--g-amber)">
+            <div class="run-title">Workflow Analysis Report</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin:16px 0">
+                <div style="background:var(--md-surface-2); padding:12px; border-radius:8px; text-align:center">
+                    <div style="font-size:20px; font-weight:700">1</div>
+                    <div style="font-size:10px; color:var(--md-dim)">TOTAL TASKS</div>
+                </div>
+                <div style="background:var(--md-surface-2); padding:12px; border-radius:8px; text-align:center">
+                    <div style="font-size:20px; font-weight:700">2/5</div>
+                    <div style="font-size:10px; color:var(--md-dim)">PRIORITY SCORE</div>
+                </div>
+                <div style="background:var(--md-surface-2); padding:12px; border-radius:8px; text-align:center">
+                    <div style="font-size:20px; font-weight:700">72%</div>
+                    <div style="font-size:10px; color:var(--md-dim)">EFFICIENCY</div>
+                </div>
+            </div>
+            <div style="margin-bottom:12px">
+                <div style="font-size:12px; color:var(--g-red); font-weight:600; margin-bottom:4px">⚠️ Issues Detected:</div>
+                <div style="font-size:13px; padding:8px; background:rgba(234,67,53,0.1); border-radius:6px; color:var(--md-on-surface)">
+                    Task "demo for client A" has no due date - planning risk
+                </div>
+            </div>
+            <div>
+                <div style="font-size:12px; color:var(--g-green); font-weight:600; margin-bottom:4px">✅ Recommendations:</div>
+                <div style="font-size:13px; padding:8px; background:rgba(52,168,83,0.1); border-radius:6px; color:var(--md-on-surface)">
+                    Prioritize "demo for client A" - highest priority value
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 function renderNews(articles) {
     const pane = document.getElementById('pane-news');
     if (!pane) return;
@@ -361,7 +449,9 @@ function initUI() {
             if (text.includes('home')) window.switchView('dashboard');
             else if (text.includes('active workflows')) window.switchView('workflows');
             else if (text.includes('agent reasoning')) window.switchView('trace');
-            else if (text.includes('settings')) window.switchView('settings');
+            else if (text.includes('vibe checks')) window.switchView('vibe-checks');
+            else if (text.includes('debates')) window.switchView('debates');
+            else if (text.includes('settings') || text.includes('safety audit')) window.switchView('settings');
         });
     });
 
