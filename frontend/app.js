@@ -209,7 +209,34 @@ const activityFeed = {
                 </div>
             `;
         }
-        return `<div class="gen-widget">Unknown widget type: ${w.type}</div>`;
+        if (w.type === 'task-draft') {
+            const draftId = `draft-${Math.random().toString(36).substr(2, 5)}`;
+            window[draftId] = w.tasks; // Store globally for commit
+            return `
+                <div class="draft-worksheet" id="${draftId}-container">
+                    <div class="dw-head">
+                        <div class="dw-title">${w.title}</div>
+                        <span class="sc-tag">${w.tasks.length} Drafts</span>
+                    </div>
+                    <div class="dw-body">
+                        ${w.tasks.map((t, idx) => `
+                            <div class="dw-row">
+                                <div class="dw-check active" onclick="this.classList.toggle('active')"><span class="ms">check</span></div>
+                                <div class="dw-info">
+                                    <div class="dw-name">${t.title}</div>
+                                    <div class="dw-meta">${t.priority.toUpperCase()} • ${t.due_date || 'No Date'}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="dw-foot">
+                        <button class="goal-run" style="width:100%" onclick="commitDraftTasks('${draftId}')">
+                            <span class="ms sm">save</span> Commit to Task Workspace
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
     },
 
     renderProvenance: function(sources) {
@@ -282,7 +309,24 @@ window.submitGoal = async function() {
         return;
     }
 
-    if (goal.toLowerCase().includes('deploy to prod')) {
+    if (goal.toLowerCase().includes('refactor security')) {
+        activityFeed.log('Analyzing security protocols and identifying refactor requirements...', 'status', 'ORCHESTRATOR');
+        setTimeout(() => {
+            activityFeed.log('I have drafted 4 tasks to unblock your API security refactor.', 'success', 'ORCHESTRATOR', {
+                type: 'task-draft',
+                title: 'Security Refactor: API V2',
+                tasks: [
+                    { title: 'Implement JWT Token Rotation', priority: 'critical', due_date: '2026-05-01' },
+                    { title: 'Update Rate Limiter Config', priority: 'high', due_date: '2026-05-02' },
+                    { title: 'Audit PII exposure in logs', priority: 'medium', due_date: '2026-05-05' },
+                    { title: 'Sign-off on Security Policy', priority: 'high', due_date: '2026-05-01' }
+                ]
+            });
+        }, 1200);
+        textarea.value = '';
+        return;
+    }
+
         activityFeed.log('Detected high-stakes action. Triggering Multi-Agent Debate Engine...', 'warning', 'SYSTEM');
         setTimeout(() => {
             activityFeed.log('Conflict detected between Speed and Security agents. Resolving via Consensus Protocol.', 'status', 'ORCHESTRATOR', {
@@ -879,8 +923,53 @@ window.discoverMCP = function() {
     }, 4500);
 };
 
+window.commitDraftTasks = function(draftId) {
+    const tasks = window[draftId];
+    const container = document.getElementById(`${draftId}-container`);
+    if (!tasks || !container) return;
+
+    // Filter to only active (checked) tasks
+    const rows = container.querySelectorAll('.dw-row');
+    const selectedTasks = [];
+    rows.forEach((row, idx) => {
+        if (row.querySelector('.dw-check').classList.contains('active')) {
+            selectedTasks.push(tasks[idx]);
+        }
+    });
+
+    if (selectedTasks.length === 0) {
+        alert('Please select at least one task to commit.');
+        return;
+    }
+
+    activityFeed.log(`Committing ${selectedTasks.length} tasks to your database...`, 'status', 'SYSTEM');
+    
+    // Simulate API calls to /api/tasks
+    Promise.all(selectedTasks.map(t => 
+        fetch('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(t)
+        })
+    )).then(() => {
+        container.innerHTML = `
+            <div style="padding:20px; text-align:center; background:var(--g-green-light); color:var(--g-green); border-radius:12px">
+                <span class="ms" style="font-size:32px; margin-bottom:8px">check_circle</span>
+                <div style="font-weight:700">Tasks Successfully Committed</div>
+                <div style="font-size:11px">${selectedTasks.length} items added to your Workspace.</div>
+                <button class="export-btn" style="margin-top:12px" onclick="window.switchView('tasks')">View Workspace</button>
+            </div>
+        `;
+        activityFeed.log(`Successfully created ${selectedTasks.length} tasks.`, 'success', 'SYSTEM');
+        // Refresh task list if we are in that view
+        if (typeof window.fetchTasks === 'function') window.fetchTasks();
+    }).catch(err => {
+        console.error('Commit failed:', err);
+        activityFeed.log('Error committing tasks. Please check your DB connection.', 'error', 'SYSTEM');
+    });
+};
+
 window.submitFeedback = function(btn, type) {
-    if (btn.classList.contains('active')) return;
     
     // Toggle active state
     const row = btn.closest('.f-feedback-row');

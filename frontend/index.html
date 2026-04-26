@@ -1396,6 +1396,62 @@ html.dark .feed-body#action-output .activity-item {
 .v-concern { background: var(--g-amber-light); color: var(--g-amber); }
 .v-oppose  { background: var(--g-red-light); color: var(--g-red); }
 
+/* ── Draft Worksheet (Zero-Friction) ── */
+.draft-worksheet {
+  background: var(--md-surface-1);
+  border: 1px solid var(--md-surface-3);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+.dw-head {
+  padding: 12px 16px;
+  background: var(--md-surface-2);
+  border-bottom: 1px solid var(--md-surface-3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dw-title { font-weight: 700; font-size: 13px; }
+.dw-body { padding: 8px 0; }
+.dw-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  transition: background 0.2s;
+  border-bottom: 1px solid var(--md-surface-2);
+}
+.dw-row:last-child { border-bottom: none; }
+.dw-row:hover { background: var(--md-surface-2); }
+.dw-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--md-surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.dw-check.active {
+  background: var(--g-blue);
+  border-color: var(--g-blue);
+  color: white;
+}
+.dw-check .ms { font-size: 12px; display: none; }
+.dw-check.active .ms { display: block; }
+.dw-info { flex: 1; min-width: 0; }
+.dw-name { font-size: 12px; font-weight: 600; margin-bottom: 1px; }
+.dw-meta { font-size: 10px; color: var(--md-dim); }
+.dw-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--md-surface-3);
+  background: var(--md-surface-2);
+}
+
+
 
 
 
