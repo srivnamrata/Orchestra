@@ -498,16 +498,24 @@ html.dark .qchip {
   flex-shrink: 0;
 }
 .goal-box {
-  background: var(--md-surface-1);
-  border: 1.5px solid var(--md-surface-3);
+  background: var(--md-surface);
+  border: 2px solid var(--md-surface-3);
   border-radius: var(--radius-lg);
   padding: 12px 14px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.3s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  animation: entryPulse 2s ease-out;
+}
+@keyframes entryPulse {
+  0% { box-shadow: 0 0 0 10px rgba(26,115,232,0.1); border-color: var(--g-blue); }
+  70% { box-shadow: 0 0 0 15px transparent; border-color: var(--g-blue); }
+  100% { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: var(--md-surface-3); }
 }
 .goal-box:focus-within {
   border-color: var(--g-blue);
-  box-shadow: 0 0 0 3px rgba(26,115,232,0.12);
+  box-shadow: 0 8px 24px rgba(26,115,232,0.15);
   background: var(--md-surface);
+  transform: translateY(-2px);
 }
 .goal-input {
   width: 100%; background: none; border: none; outline: none;
