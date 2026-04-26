@@ -32,6 +32,44 @@ let _nlActiveStream = null;
 let _scanRunning = false;
 let _liveTraceSource = null;
 
+// ── Command Palette & Shortcuts ─────────────────────────────────────────────
+window.openPalette = function() {
+    const p = document.getElementById('palette');
+    const b = document.getElementById('paletteBackdrop');
+    const inp = document.getElementById('paletteInput');
+    if (p && b) {
+        p.classList.add('open');
+        b.classList.add('open');
+        if (inp) {
+            inp.value = '';
+            setTimeout(() => inp.focus(), 50);
+        }
+    }
+};
+
+window.closePalette = function() {
+    const p = document.getElementById('palette');
+    const b = document.getElementById('paletteBackdrop');
+    if (p && b) {
+        p.classList.remove('open');
+        b.classList.remove('open');
+    }
+};
+
+document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        window.openPalette();
+    }
+    if (e.key === 'Escape') window.closePalette();
+});
+
+function showCompletionToast(goalText) {
+    const toast = document.getElementById('completionToast');
+    if (document.getElementById('ct-goal-text')) document.getElementById('ct-goal-text').textContent = goalText;
+    if (toast) toast.classList.add('show');
+}
+
 // ── Navigation & View Management ─────────────────────────────────────────────
 window.switchView = function(viewId) {
     console.log(`Switching View: ${viewId}`);
@@ -530,6 +568,16 @@ window.submitGoal = async function() {
                         activityFeed.log(payload.message, payload.type || 'info', payload.category || 'agent', payload.widget);
                     } else if (event === 'done') {
                         activityFeed.log('✅ Workflow execution completed.', 'success', 'SYSTEM');
+                        
+                        // Trigger Confetti
+                        confetti({
+                            particleCount: 150,
+                            spread: 70,
+                            origin: { y: 0.6 },
+                            colors: ['#1a73e8', '#34a853', '#fbbc04', '#ea4335']
+                        });
+                        
+                        showCompletionToast(goal);
                     }
                 } catch (e) { console.warn('SSE Parse Error:', e); }
             }

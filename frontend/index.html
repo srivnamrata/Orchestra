@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Google+Sans+Display:wght@400;500;700&family=Google+Sans+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <style>
 
 /* ── Google Material Design 3 Tokens ── */
@@ -2830,5 +2831,58 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
 ══════════════════════════════════════ -->
 
 <script src="/static/app.js" defer></script>
+
+<!-- ── Completion Toast ── -->
+<div class="completion-toast" id="completionToast">
+  <button class="ct-close" onclick="this.parentElement.classList.remove('show')"><span class="ms">close</span></button>
+  <div class="ct-icon">🎉</div>
+  <div class="ct-body">
+    <div class="ct-title">Goal Achieved!</div>
+    <div class="ct-sub" id="ct-goal-text">Your workflow has completed successfully.</div>
+  </div>
+  <div class="ct-files" id="ct-files"></div>
+  <button class="ct-view" onclick="window.switchView('outputs')">View Generated Outputs</button>
+</div>
+
+<!-- ── Command Palette ── -->
+<div class="palette-backdrop" id="paletteBackdrop" onclick="closePalette()"></div>
+<div class="palette" id="palette">
+  <div class="palette-search-row">
+    <span class="ms palette-search-icon">search</span>
+    <input type="text" class="palette-input" placeholder="Search commands..." id="paletteInput">
+    <div class="palette-esc" onclick="closePalette()">ESC</div>
+  </div>
+  <div class="palette-sections">
+    <div class="palette-section-label">General</div>
+    <div class="palette-item" onclick="closePalette(); document.getElementById('nl-goal-input').focus()">
+      <div class="pi-icon"><span class="ms">add</span></div>
+      <div class="pi-label">Create New Goal</div>
+      <div class="pi-kbd">⌘G</div>
+    </div>
+    <div class="palette-item" onclick="closePalette(); window.toggleTheme()">
+      <div class="pi-icon"><span class="ms">contrast</span></div>
+      <div class="pi-label">Toggle Dark Mode</div>
+      <div class="pi-kbd">⌘D</div>
+    </div>
+    
+    <div class="palette-section-label">Help & Support</div>
+    <div class="palette-item" onclick="closePalette(); if(window.restartTour) window.restartTour()">
+      <div class="pi-icon" style="background:var(--g-violet); color:white"><span class="ms">explore</span></div>
+      <div class="pi-label">Restart Starter Tour</div>
+      <div class="pi-kbd">⌘H</div>
+    </div>
+
+    <div class="palette-section-label">Intelligence</div>
+    <div class="palette-item" onclick="closePalette(); window.switchView('trace')">
+      <div class="pi-icon"><span class="ms">psychology</span></div>
+      <div class="pi-label">View Agent Reasoning</div>
+    </div>
+    <div class="palette-item" onclick="closePalette(); window.runScan()">
+      <div class="pi-icon"><span class="ms">radar</span></div>
+      <div class="pi-label">Run Intelligence Scan</div>
+    </div>
+  </div>
+</div>
+
 <script src="/static/js/onboarding.js" defer></script>
 </body></html>
