@@ -13,10 +13,15 @@ const ORCHESTRA_API_BASE = (() => {
         }
 
         const savedBase = localStorage.getItem('orchestraApiBase');
-        const base = queryBase || savedBase || window.location.origin;
+        const fallbackBase = window.location.protocol === 'file:'
+            ? 'https://orchestra-272079333717.us-central1.run.app'
+            : window.location.origin;
+        const base = queryBase || savedBase || fallbackBase;
         return base.replace(/\/$/, '');
     } catch (_) {
-        return window.location.origin;
+        return window.location.protocol === 'file:'
+            ? 'https://orchestra-272079333717.us-central1.run.app'
+            : window.location.origin;
     }
 })();
 window.ORCHESTRA_API_BASE = ORCHESTRA_API_BASE;
@@ -473,7 +478,7 @@ function initFloatingHintBadge() {
     };
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function bootOrchestraApp() {
     console.log('📄 DOMContentLoaded event fired');
     
     // Defer ALL initialization to next frame to ensure page is interactive
@@ -515,7 +520,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // 6. Initialise voice input
         voiceInput.init();
     }, 150);
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootOrchestraApp);
+} else {
+    bootOrchestraApp();
+}
 
 // Helper for UI Console
 // ============================================================================
@@ -1088,9 +1099,8 @@ function displayAgentContent(agentName, agentTitle, icon, contentData) {
     document.getElementById('stop-audio-btn').style.display = 'inline-flex';
 }
 
-// Display news articles in card format — handles both new (articles[]) and legacy formats
+// Display news articles in card format
 function displayNewsCards(container, data) {
-    // Prefer full article objects; fall back to headline strings
     const articles = data.articles && data.articles.length > 0
         ? data.articles
         : (data.sample_headlines || []).map(h => ({ title: h }));
@@ -1100,50 +1110,44 @@ function displayNewsCards(container, data) {
         return;
     }
 
+    const grid = document.createElement('div');
+    grid.className = 'news-grid';
+    
     articles.forEach((article, idx) => {
         const card = createNewsCard(article, idx === 0);
-        container.appendChild(card);
+        grid.appendChild(card);
     });
+    
+    container.appendChild(grid);
 }
 
-// Create individual news card — handles HackerNews, DEV.to, Reddit, and legacy formats
+// Create individual news card for MD3 UI
 function createNewsCard(article, isFeatured = false) {
     const card = document.createElement('div');
-    card.className = `article-card ${isFeatured ? 'featured' : ''}`;
+    card.className = 'news-card nc-hn'; // Using the hackernews styling by default for contrast
 
-    // Normalise fields across all sources
     const title       = article.title || 'Untitled';
-    const summary     = article.description || article.summary || article.content || 'No description available.';
-    const truncated   = summary.length > 200 ? summary.substring(0, 200) + '…' : summary;
-    const url         = article.url || article.link || '#';
     const sourceName  = (article.source && (article.source.name || article.source)) || 'News';
     const pubDate     = article.publishedAt || article.published_at || article.created_at || '';
-    const dateLabel   = pubDate ? new Date(pubDate).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '';
+    const dateLabel   = pubDate ? new Date(pubDate).toLocaleDateString('en-IN', {day:'numeric',month:'short'}) : 'Just now';
+    const url         = article.url || article.link || '#';
     const safeTitle   = title.replace(/'/g, "\'").replace(/"/g, '&quot;');
+    const initial     = sourceName.charAt(0).toUpperCase();
 
     card.innerHTML = `
-        <div class="article-card-header">
-            <div style="flex:1;">
-                <div class="article-title ${isFeatured ? 'featured' : ''}">
-                    ${isFeatured ? '📰 ' : ''}${title}
-                </div>
-                <div class="article-card-meta">
-                    <span class="source-badge">${sourceName}</span>
-                    ${dateLabel ? `<span class="published-date"><i class="fa-solid fa-calendar"></i> ${dateLabel}</span>` : ''}
-                </div>
-            </div>
+        <div class="news-source-row">
+            <div class="news-favicon" style="background:#ff6600;color:white">${initial}</div>
+            <span class="news-source-name">${sourceName}</span>
+            <span class="news-date">${dateLabel}</span>
         </div>
-        <div class="article-summary">${truncated}</div>
-        <div class="article-actions">
-            <button class="action-btn" onclick="listenArticle('${safeTitle}')">
-                <i class="fa-solid fa-volume-high"></i> Listen
-            </button>
-            <button class="action-btn action-btn--link" onclick="window.open('${url}','_blank')">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i> Read
-            </button>
-            <button class="action-btn action-btn--save" onclick="saveArticle('${safeTitle}')">
-                <i class="fa-solid fa-bookmark"></i> Save
-            </button>
+        <div class="news-title">${title}</div>
+        <div class="news-meta">
+            <span class="news-score">📰</span>
+        </div>
+        <div class="news-actions">
+            <button class="na-btn" onclick="listenArticle('${safeTitle}')">🎧 Listen</button>
+            <button class="na-btn" onclick="window.open('${url}','_blank')">📖 Read</button>
+            <button class="na-btn" onclick="saveArticle('${safeTitle}')">🔖 Save</button>
         </div>
     `;
     return card;
@@ -1151,7 +1155,6 @@ function createNewsCard(article, isFeatured = false) {
 
 // Display research papers in card format
 function displayResearchCards(container, data) {
-    // Support both new (papers[]) and legacy (trending_topics) formats
     const papers = data.papers || data.articles || [];
 
     if (papers.length === 0) {
@@ -1159,47 +1162,42 @@ function displayResearchCards(container, data) {
         return;
     }
 
+    const grid = document.createElement('div');
+    grid.className = 'news-grid';
+
     papers.forEach((paper, idx) => {
         const card = document.createElement('div');
-        card.className = `article-card ${idx === 0 ? 'featured' : ''}`;
+        card.className = 'news-card nc-arxiv';
 
         const authors   = Array.isArray(paper.authors) ? paper.authors.join(', ') : (paper.authors || '');
-        const pubDate   = paper.published ? new Date(paper.published).toLocaleDateString('en-IN', {year:'numeric',month:'short',day:'numeric'}) : '';
-        const sourceLabel = (paper.source || data.source || 'arXiv').replace('_',' ').toUpperCase();
+        const pubDate   = paper.published ? new Date(paper.published).toLocaleDateString('en-IN', {month:'short',day:'numeric'}) : 'Just now';
+        const sourceLabel = (paper.source || data.source || 'arXiv').replace('_',' ');
         const paperUrl  = paper.url || paper.pdf_url || '#';
         const category  = paper.category || 'cs.AI';
         const safeTitle = (paper.title || '').replace(/'/g, "\'");
+        const summary   = paper.summary || paper.description || 'No abstract available.';
+        const truncated = summary.length > 150 ? summary.substring(0, 150) + '…' : summary;
 
         card.innerHTML = `
-            <div class="article-card-header">
-                <div style="flex:1;">
-                    <div class="article-title ${idx === 0 ? 'featured' : ''}">
-                        🔬 ${paper.title || 'Untitled'}
-                    </div>
-                    <div class="article-card-meta">
-                        <span class="source-badge">${sourceLabel}</span>
-                        <span class="source-badge" style="background:rgba(167,139,250,0.2);color:#a78bfa;">${category}</span>
-                        ${pubDate ? `<span class="published-date"><i class="fa-solid fa-calendar"></i> ${pubDate}</span>` : ''}
-                    </div>
-                </div>
+            <div class="news-source-row">
+                <div class="news-favicon" style="background:#b31b1b;color:white">aX</div>
+                <span class="news-source-name">${sourceLabel}</span>
+                <span class="news-date">${pubDate}</span>
             </div>
-            ${authors ? `<div style="font-size:0.77rem;color:#888;margin-bottom:6px;padding:0 2px;">👤 ${authors}</div>` : ''}
-            <div class="article-summary">${paper.summary || paper.description || 'No abstract available.'}</div>
-            <div class="article-actions">
-                <button class="action-btn" onclick="listenArticle('${safeTitle}')">
-                    <i class="fa-solid fa-volume-high"></i> Listen
-                </button>
-                <button class="action-btn action-btn--link" onclick="window.open('${paperUrl}','_blank')">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> ${sourceLabel === 'ARXIV' ? 'arXiv' : 'View'}
-                </button>
-                ${paper.pdf_url ? `<button class="action-btn" onclick="window.open('${paper.pdf_url}','_blank')"><i class="fa-solid fa-file-pdf"></i> PDF</button>` : ''}
-                <button class="action-btn action-btn--save" onclick="saveArticle('${safeTitle}')">
-                    <i class="fa-solid fa-bookmark"></i> Save
-                </button>
+            <div class="news-title">${paper.title || 'Untitled'}</div>
+            <div style="font-size:12px;color:var(--md-muted);margin-bottom:8px;">${authors}</div>
+            <div class="news-meta" style="flex-wrap:wrap;">
+                <span class="news-score" style="background:rgba(167,139,250,0.1);color:#a78bfa;padding:2px 6px;">${category}</span>
+                <span style="font-size:12px;color:var(--md-dim);">${truncated}</span>
+            </div>
+            <div class="news-actions">
+                <button class="na-btn" onclick="listenArticle('${safeTitle}')">🎧 Listen</button>
+                <button class="na-btn" onclick="window.open('${paperUrl}','_blank')">📖 Read PDF</button>
             </div>
         `;
-        container.appendChild(card);
+        grid.appendChild(card);
     });
+    container.appendChild(grid);
 }
 
 // Display tasks in card format
@@ -1209,50 +1207,67 @@ function displayTaskCards(container, data) {
         return;
     }
     
+    const grid = document.createElement('div');
+    grid.className = 'task-intel-grid';
+    
     // Display each task as a card
     data.tasks.forEach((task, idx) => {
-        const card = document.createElement('div');
-        card.className = `article-card ${idx === 0 ? 'featured' : ''}`;
+        const item = document.createElement('div');
+        item.className = 'task-intel-item';
         
         const priorityColors = {
-            'critical': '#ff6b6b',
-            'high': '#ffd43b',
-            'medium': '#4facfe',
-            'low': '#98fb98'
+            'critical': { bg: 'var(--g-red-light)', color: 'var(--g-red)' },
+            'high': { bg: 'var(--g-amber-light)', color: 'var(--g-amber)' },
+            'medium': { bg: 'var(--g-blue-light)', color: 'var(--g-blue)' },
+            'low': { bg: 'var(--g-green-light)', color: 'var(--g-green)' }
         };
         
-        const priorityColor = priorityColors[task.title.split('[')[1]?.slice(0, -1)] || '#4facfe';
-        const taskId = task.task_id || task.id || '';
+        // Extract priority
+        const match = task.title.match(/\[(.*?)\]/);
+        const priorityText = match ? match[1].toLowerCase() : (task.priority || 'medium');
+        const pColor = priorityColors[priorityText] || priorityColors['medium'];
         
-        card.innerHTML = `
-            <div class="article-card-header">
-                <div style="flex: 1;">
-                    <div class="article-title ${idx === 0 ? 'featured' : ''}">
-                        ✓ ${task.title}
-                    </div>
-                    <div class="article-card-meta">
-                        <span class="source-badge">${task.content.split('|')[0].trim()}</span>
-                        <span class="published-date" style="color: ${priorityColor}">
-                            <i class="fa-solid fa-flag"></i> ${task.content.split('|')[0].replace('Priority: ', '').trim()}
-                        </span>
-                    </div>
+        const taskId = task.task_id || task.id || '';
+        const titleText = task.title.replace(/\[.*?\]/, '').trim();
+        const isDone = task.status === 'completed' || task.status === 'done';
+        
+        // Format due date
+        let dueStr = 'No date';
+        if (task.due_date) {
+            const dueDate = new Date(task.due_date);
+            if (!isNaN(dueDate.getTime())) {
+                dueStr = dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
+        }
+        
+        item.innerHTML = `
+            <div class="ti-check ${isDone ? 'done' : ''}">${isDone ? '✓' : ''}</div>
+            <div style="flex:1;">
+                <div class="ti-title ${isDone ? 'done-text' : ''}">${titleText}</div>
+                <div style="display:flex;gap:6px;margin-top:4px">
+                    <span class="ti-priority" style="background:${pColor.bg};color:${pColor.color}">${priorityText}</span>
+                    <span class="ti-due">${dueStr}</span>
                 </div>
             </div>
-            <div class="article-summary">
-                ${task.details}
-            </div>
-            <div class="article-actions">
-                <button class="action-btn" onclick="editTask('${taskId}', '${task.title.replace(/'/g, "\\'")}')">                    <i class="fa-solid fa-pen"></i> Edit
-                </button>
-                <button class="action-btn action-btn--link" onclick="completeTask('${taskId}')">                    <i class="fa-solid fa-check"></i> Done
-                </button>
-                <button class="action-btn action-btn--save" onclick="deleteTask('${taskId}')">
-                    <i class="fa-solid fa-trash"></i> Delete
-                </button>
+            <div class="ti-actions" style="display:flex;gap:4px;">
+                <button class="na-btn" style="padding:2px 6px;font-size:10px" onclick="editTask('${taskId}', '${titleText.replace(/'/g, "\\'")}')">Edit</button>
+                <button class="na-btn" style="padding:2px 6px;font-size:10px" onclick="deleteTask('${taskId}')">Del</button>
             </div>
         `;
-        container.appendChild(card);
+        
+        // Add click listener to checkbox
+        const checkBtn = item.querySelector('.ti-check');
+        checkBtn.addEventListener('click', function() {
+            const done = this.classList.toggle('done');
+            this.textContent = done ? '✓' : '';
+            this.closest('.task-intel-item').querySelector('.ti-title').classList.toggle('done-text', done);
+            completeTask(taskId);
+        });
+        
+        grid.appendChild(item);
     });
+    
+    container.appendChild(grid);
 }
 
 // Display events in card format
@@ -1262,60 +1277,59 @@ function displayEventCards(container, data) {
         return;
     }
     
+    const grid = document.createElement('div');
+    grid.className = 'schedule-grid';
+    
     // Display each event as a card
     data.events.forEach((event, idx) => {
-        const card = document.createElement('div');
-        card.className = `article-card ${idx === 0 ? 'featured' : ''}`;
+        const item = document.createElement('div');
         
-        // Parse event time/date - handle null/invalid dates
-        let dateStr = 'No date';
-        let timeStr = 'No time';
+        // Parse event time/date
+        let timeStr = 'All day';
+        let isNow = false;
         
         if (event.start_time) {
             const eventDate = new Date(event.start_time);
             if (!isNaN(eventDate.getTime())) {
-                dateStr = eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                timeStr = eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                timeStr = eventDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                
+                // Simple check if it's "now" (within 1 hour)
+                const now = new Date();
+                const diffMin = (eventDate - now) / 60000;
+                if (diffMin > -60 && diffMin < 15) {
+                    isNow = true;
+                }
             }
         }
         
+        item.className = `sched-item ${isNow ? 'now' : ''}`;
+        
         const evId = event.event_id || event.id || '';
-        const safeTitle = (event.title || '').replace(/'/g, "\\'");
-        card.innerHTML = `
-            <div class="article-card-header">
-                <div style="flex: 1;">
-                    <div class="article-title ${idx === 0 ? 'featured' : ''}">
-                        📅 ${event.title}
-                    </div>
-                    <div class="article-card-meta">
-                        <span class="source-badge">Calendar</span>
-                        <span class="published-date">
-                            <i class="fa-solid fa-clock"></i> ${timeStr}
-                        </span>
-                    </div>
-                </div>
+        const safeTitle = (event.title || 'Untitled').replace(/'/g, "\\'");
+        const duration = event.duration_minutes ? `${event.duration_minutes} min` : '';
+        const location = event.location ? `· ${event.location}` : '';
+        const detailStr = [duration, location].filter(Boolean).join(' ');
+        
+        let tagHtml = '';
+        if (isNow) {
+            tagHtml = `<span class="sched-tag" style="background:var(--g-green-light);color:var(--g-green);border:1px solid rgba(30,142,62,0.3)">● Now</span>`;
+        } else {
+            tagHtml = `<span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span>`;
+        }
+        
+        item.innerHTML = `
+            <div class="sched-time">${timeStr}</div>
+            <div style="flex:1;">
+                <div class="sched-name">${safeTitle}</div>
+                <div class="sched-detail">${detailStr || 'No details'}</div>
             </div>
-            <div class="article-summary">
-                <strong>📆 ${dateStr}</strong>
-                ${timeStr !== 'No time' ? `<br><i class="fa-solid fa-clock"></i> <strong>Time:</strong> ${timeStr}` : ''}
-                ${event.duration_minutes ? `<br><i class="fa-solid fa-hourglass"></i> <strong>Duration:</strong> ${event.duration_minutes} min` : ''}
-                ${event.location    ? `<br><i class="fa-solid fa-location-dot"></i> <strong>Location:</strong> ${event.location}` : ''}
-                ${event.description ? `<br><i class="fa-solid fa-note-sticky"></i> ${event.description}` : ''}
-            </div>
-            <div class="article-actions">
-                <button class="action-btn" onclick="editEvent('${evId}', '${safeTitle}')">
-                    <i class="fa-solid fa-pen"></i> Edit
-                </button>
-                <button class="action-btn action-btn--link" onclick="openEventDetails('${evId}', '${safeTitle}')">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Details
-                </button>
-                <button class="action-btn action-btn--save" onclick="deleteEvent('${evId}')">
-                    <i class="fa-solid fa-trash"></i> Remove
-                </button>
-            </div>
+            ${tagHtml}
         `;
-        container.appendChild(card);
+        
+        grid.appendChild(item);
     });
+    
+    container.appendChild(grid);
 }
 
 // Display Google Calendar events in card format
@@ -2048,277 +2062,30 @@ async function fetchHealthStatus(attempt = 1) {
 // ============================================================================
 
 async function triggerCriticDemo() {
-    console.log('🔍 [CRITIC DEMO] Function called');
-    appendLog('🔍 Analyzing your tasks with Critic Agent...', 'info');
-    
-    try {
-        // Switch to workflows tab
-        console.log('🔍 [CRITIC DEMO] Switching to workflows view');
-        switchView('workflows');
-        
-        const workflowContainer = document.getElementById('workflow-container');
-        if (!workflowContainer) {
-            console.error('🔍 [CRITIC DEMO] ERROR: Workflow container not found');
-            appendLog('❌ Error: Workflow container not found', 'error');
-            return;
-        }
-        console.log('🔍 [CRITIC DEMO] Workflow container found, showing loading state');
-        workflowContainer.innerHTML = '<div class="loading-pulse">Analyzing workflow efficiency...</div>';
-        
-        // Fetch real tasks from database
-        console.log('🔍 [CRITIC DEMO] Fetching tasks from API');
-        const tasksRes = await fetch('/api/tasks?limit=100');
-        const tasksData = await tasksRes.json();
-        console.log('🔍 [CRITIC DEMO] Tasks fetched:', tasksData);
-        
-        if (!tasksData.tasks || tasksData.tasks.length === 0) {
-            console.warn('🔍 [CRITIC DEMO] No tasks found');
-            appendLog('❌ No tasks to analyze. Create some tasks first!', 'error');
-            workflowContainer.innerHTML = '<div class="log-error">No tasks to analyze. Create some tasks first using "Create New Task"!</div>';
-            return;
-        }
-        
-        // Analyze tasks for efficiency issues
-        let critiques = [];
-        let improvements = [];
-        let totalPriority = 0;
-        
-        tasksData.tasks.forEach((task, index) => {
-            // Check for common issues
-            if (!task.due_date) {
-                critiques.push(`Task "${task.title}" has no due date - planning risk`);
-            }
-            if (task.priority === 'critical' || task.priority === 'high') {
-                if (!task.description) {
-                    critiques.push(`High-priority task "${task.title}" lacks description clarity`);
-                }
-            }
-            
-            // Suggest improvements
-            if (task.status === 'open') {
-                improvements.push(`Prioritize "${task.title}" - highest priority value`);
-            }
-            
-            totalPriority += (task.priority === 'critical' ? 4 : task.priority === 'high' ? 3 : task.priority === 'medium' ? 2 : 1);
-        });
-        
-        // Build analysis report
-        let htmlReport = '<div style="padding: 20px;">';
-        htmlReport += `<h3 style="color: var(--success); margin-bottom: 15px;">📊 Workflow Analysis Report</h3>`;
-        
-        // Summary stats
-        htmlReport += `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">`;
-        htmlReport += `<div style="background: rgba(100, 200, 255, 0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #64c8ff;">
-                        <strong>Total Tasks:</strong> <span style="color: #64c8ff; font-size: 1.2em;">${tasksData.tasks.length}</span>
-                       </div>`;
-        htmlReport += `<div style="background: rgba(100, 200, 255, 0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #64c8ff;">
-                        <strong>Priority Score:</strong> <span style="color: #64c8ff; font-size: 1.2em;">${totalPriority}/5</span>
-                       </div>`;
-        htmlReport += `<div style="background: rgba(100, 200, 255, 0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #64c8ff;">
-                        <strong>Efficiency Score:</strong> <span style="color: #64c8ff; font-size: 1.2em;">72%</span>
-                       </div>`;
-        htmlReport += `</div>`;
-        
-        // Issues found
-        if (critiques.length > 0) {
-            htmlReport += `<h4 style="color: #ff6b6b; margin-top: 20px; margin-bottom: 10px;">⚠️ Issues Detected (${critiques.length}):</h4>`;
-            critiques.forEach((critique, i) => {
-                htmlReport += `<div style="background: rgba(255, 107, 107, 0.1); padding: 10px; margin-bottom: 8px; border-left: 3px solid #ff6b6b; border-radius: 4px;">
-                                ${(i + 1)}. ${critique}
-                              </div>`;
-            });
-        }
-        
-        // Recommendations
-        htmlReport += `<h4 style="color: #51cf66; margin-top: 20px; margin-bottom: 10px;">✅ Recommendations (${improvements.length}):</h4>`;
-        improvements.slice(0, 3).forEach((improvement, i) => {
-            htmlReport += `<div style="background: rgba(81, 207, 102, 0.1); padding: 10px; margin-bottom: 8px; border-left: 3px solid #51cf66; border-radius: 4px;">
-                            ${(i + 1)}. ${improvement}
-                          </div>`;
-        });
-        
-        // Task breakdown
-        htmlReport += `<h4 style="color: var(--accent); margin-top: 20px; margin-bottom: 10px;">📋 Task Breakdown:</h4>`;
-        htmlReport += `<div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">`;
-        tasksData.tasks.slice(0, 5).forEach((task, i) => {
-            const statusColor = task.status === 'completed' ? '#51cf66' : task.status === 'in_progress' ? '#ffd43b' : '#64c8ff';
-            htmlReport += `<div style="margin-bottom: 10px; padding: 10px; background: rgba(${statusColor === '#51cf66' ? '81,207,102' : statusColor === '#ffd43b' ? '255,212,59' : '100,200,255'},0.1); border-radius: 4px; border-left: 3px solid ${statusColor};">
-                            <strong>${task.title}</strong> 
-                            <span style="color: ${statusColor}; margin: 0 8px;">[${task.priority}]</span>
-                            <span style="color: #888;">${task.status}</span>
-                          </div>`;
-        });
-        htmlReport += `</div>`;
-        
-        htmlReport += `<p style="margin-top: 20px; color: #888; font-size: 0.9em;">✨ Critic Agent recommends optimizing task dependencies and prioritization for 25% efficiency gain.</p>`;
-        htmlReport += `</div>`;
-        
-        workflowContainer.innerHTML = htmlReport;
-        
-        appendLog(`✅ Critic Analysis Complete: ${critiques.length} issues found, ${improvements.length} recommendations`, 'success');
-        const statWorkflows = document.getElementById('stat-workflows');
-        if (statWorkflows) {
-            statWorkflows.innerText = `${tasksData.tasks.length} Active`;
-        }
-        console.log('🔍 [CRITIC DEMO] Analysis complete');
-        
-    } catch (e) {
-        console.error('🔍 [CRITIC DEMO] Error:', e);
-        appendLog('❌ Error running critic analysis: ' + e.message, 'error');
-        const workflowContainer = document.getElementById('workflow-container');
-        if (workflowContainer) {
-            workflowContainer.innerHTML = `<div class="log-error">Error: ${e.message}</div>`;
-        }
-    }
-}
-
-async function triggerVibeCheckDemo() {
-    appendLog('🛡️ Running Cross-Agent Vibe Check...', 'warning');
-    // Change to vibe-checks tab automatically
-    switchView('vibe-checks');
-    
-    const vibecheckContainer = document.getElementById('vibecheck-container');
-    if (!vibecheckContainer) {
-        appendLog('❌ Error: Vibe check container not found', 'error');
-        return;
-    }
-    vibecheckContainer.innerHTML = '<div class="loading-pulse">Running safety protocols...</div>';
-    
-    try {
-        // Fetch real tasks to evaluate
-        const tasksRes = await fetch('/api/tasks?limit=100');
-        const tasksData = await tasksRes.json();
-        
-        if (!tasksData.tasks || tasksData.tasks.length === 0) {
-            vibecheckContainer.innerHTML = '<div class="empty-state">No tasks to evaluate. Create tasks first!</div>';
-            return;
-        }
-        
-        // Perform vibe check analysis on tasks
-        let safetyScore = 95;
-        let alignmentScore = 88;
-        let conflictCount = 0;
-        let concerns = [];
-        let approvals = [];
-        
-        tasksData.tasks.forEach((task) => {
-            // Check for potential conflicts
-            if (task.priority === 'critical' && task.status === 'open') {
-                concerns.push(`⚠️ Critical task "${task.title}" still open - may affect goal alignment`);
-                alignmentScore -= 5;
-            }
-            
-            // Check for PII risks
-            if (task.description && (task.description.includes('@') || task.description.includes('password'))) {
-                concerns.push(`🔐 Potential sensitive data in task "${task.title}"`);
-                safetyScore -= 10;
-            }
-            
-            // Approve clear tasks
-            if (task.priority === 'high' && task.due_date) {
-                approvals.push(`✅ Task "${task.title}" has clear deadline and priority`);
-            }
-        });
-        
-        // Build vibe-check report
-        let htmlReport = '<div style="padding: 20px;">';
-        htmlReport += `<h3 style="color: var(--success); margin-bottom: 15px;">🛡️ Safety & Alignment Report</h3>`;
-        
-        // Score cards
-        htmlReport += `<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">`;
-        htmlReport += `<div style="background: rgba(81, 207, 102, 0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #51cf66;">
-                        <strong>Safety Score:</strong><br><span style="color: #51cf66; font-size: 1.3em;">${safetyScore}%</span>
-                       </div>`;
-        htmlReport += `<div style="background: rgba(100, 200, 255, 0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #64c8ff;">
-                        <strong>Goal Alignment:</strong><br><span style="color: #64c8ff; font-size: 1.3em;">${alignmentScore}%</span>
-                       </div>`;
-        htmlReport += `</div>`;
-        
-        // Concerns
-        if (concerns.length > 0) {
-            htmlReport += `<h4 style="color: #ff9800; margin-top: 20px; margin-bottom: 10px;">⚠️ Vibe-Check Alerts (${concerns.length}):</h4>`;
-            concerns.forEach((concern, i) => {
-                htmlReport += `<div style="background: rgba(255, 152, 0, 0.1); padding: 10px; margin-bottom: 8px; border-left: 3px solid #ff9800; border-radius: 4px;">
-                                ${concern}
-                              </div>`;
-            });
-        } else {
-            htmlReport += `<h4 style="color: #51cf66; margin-top: 20px; margin-bottom: 10px;">✅ No Concerns Detected</h4>`;
-        }
-        
-        // Approvals
-        htmlReport += `<h4 style="color: #51cf66; margin-top: 20px; margin-bottom: 10px;">✅ Approved Items (${approvals.length}):</h4>`;
-        if (approvals.length > 0) {
-            approvals.forEach((approval, i) => {
-                htmlReport += `<div style="background: rgba(81, 207, 102, 0.1); padding: 10px; margin-bottom: 8px; border-left: 3px solid #51cf66; border-radius: 4px;">
-                                ${approval}
-                              </div>`;
-            });
-        } else {
-            htmlReport += `<div style="color: #888;">All tasks evaluated for intent alignment and safety protocols.</div>`;
-        }
-        
-        htmlReport += `<p style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); color: #888; font-size: 0.9em;">
-                        ✨ Vibe-check complete. All agents are aligned with user goals and safety protocols are satisfied.
-                      </p>`;
-        htmlReport += `</div>`;
-        
-        vibecheckContainer.innerHTML = htmlReport;
-        
-        appendLog(`✅ Vibe-Check Complete: Safety ${safetyScore}% | Alignment ${alignmentScore}% | ${concerns.length} alerts`, 'success');
-        
-    } catch (e) {
-        appendLog('❌ Error running vibe check: ' + e.message, 'error');
-        vibecheckContainer.innerHTML = `<div class="log-error">Error: ${e.message}</div>`;
+    if (typeof runDemo === 'function') {
+        runDemo('critic');
+    } else {
+        appendLog('Critic demo UI not available.', 'error');
     }
 }
 
 async function triggerDebateDemo() {
-    appendLog('Initiating Multi-Agent Debate Engine...', 'accent');
-    // Switch to debates tab
-    switchView('debates');
-    
-    const debateBox = document.getElementById('debate-container');
-    if (!debateBox) {
-        appendLog('❌ Error: Debate container not found', 'error');
-        return;
+    if (typeof runDemo === 'function') {
+        runDemo('debate');
+    } else {
+        appendLog('Debate UI not available.', 'error');
     }
-    debateBox.innerHTML = '<div class="loading-pulse">Assembling agents in the Debate Chamber...</div>';
-    
-    const actionPayload = {
-        name: "Delete production database indices to save space",
-        type: "destructive",
-        impact: "high"
-    };
+}
 
-    try {
-        const res = await fetch('/debate/initiate', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                action: actionPayload,
-                executor_agent: "optimization_agent",
-                reasoning: "The DB indices are taking up 50GB of space and costing money.",
-                issue_context: "Destructive operation proposed by Optimization agent."
-            })
-        });
-        
-        const data = await res.json();
-        
-        // Construct debate view
-        let debateHTML = `<div style="padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px;">`;
-        debateHTML += `<h3 style="color: var(--accent); margin-bottom:10px;">Debate ID: ${data.debate_id}</h3>`;
-        debateHTML += `<p><strong>Subject:</strong> Delete production database indices</p>`;
-        debateHTML += `<p><strong>Final Decision:</strong> <span style="${data.final_decision.includes('✅') ? 'color: var(--success);' : 'color: var(--accent);'}">${data.final_decision}</span></p>`;
-        
-        debateHTML += `<div style="margin-top: 15px; border-top: 1px solid var(--panel-border); padding-top: 15px;">`;
-        debateHTML += `<h4>Full Summary:</h4>`;
-        debateHTML += formatJSON(data.summary);
-        debateHTML += `</div></div>`;
-        
-        debateBox.innerHTML = debateHTML;
-        appendLog('Debate Engine Concluded.', 'success');
-    } catch(e) {
+async function triggerVibeCheckDemo() {
+    if (typeof runDemo === 'function') {
+        runDemo('vibe');
+    } else {
+        appendLog('Vibe check UI not available.', 'error');
+    }
+}
+
+async function triggerDebateDemo() {
         appendLog('Debate engine failed to initiate (or endpoint not fully mockable without LLM keys). ' + e.message, 'error');
         debateBox.innerHTML = `<div class="log-error">Error: ${e.message}</div>`;
     }
@@ -2811,6 +2578,14 @@ activityFeed.logStream = function(message, type, category) {
         feedDiv.prepend(el);
     }
 
+    if (typeof window.orchestraAppendSmartFeed === 'function') {
+        try {
+            window.orchestraAppendSmartFeed(activity);
+        } catch (e) {
+            console.warn('Smart feed mirror failed:', e);
+        }
+    }
+
     this.updateSummary();
 };
 
@@ -3099,14 +2874,27 @@ const voiceInput = {
 };
 
 function toggleVoiceInput() {
-    if (!voiceInput.isSupported) {
-        alert('Voice input is not supported in this browser. Please use Chrome or Edge.');
+    if (voiceInput.isSupported) {
+        if (voiceInput.isListening) {
+            voiceInput.stop();
+        } else {
+            voiceInput.start();
+        }
         return;
     }
-    if (voiceInput.isListening) {
-        voiceInput.stop();
-    } else {
-        voiceInput.start();
+
+    const goal = window.prompt('Voice input is unavailable here. Type your goal instead:');
+    if (goal && goal.trim()) {
+        const ta = document.getElementById('nl-goal-input');
+        if (ta) {
+            ta.value = goal.trim();
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (typeof submitGoal === 'function') {
+            submitGoal();
+        } else if (typeof submitNLGoal === 'function') {
+            submitNLGoal();
+        }
     }
 }
 

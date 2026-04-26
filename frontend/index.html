@@ -913,6 +913,103 @@ html.dark .qchip {
 .feed-entry:hover .f-explain-icon { opacity: 0.4; }
 .feed-entry.active .f-explain-icon { opacity: 1; }
 
+/* Live backend activity feed rendered by app.js */
+.feed-body#action-output {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 10px;
+}
+.feed-body#action-output .activity-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--md-surface-2);
+  background: var(--md-surface);
+  box-shadow: var(--shadow-1);
+  animation: activityCardIn 0.22s ease-out;
+}
+html.dark .feed-body#action-output .activity-item {
+  background: var(--md-surface);
+  border-color: var(--md-surface-2);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+}
+.feed-body#action-output .activity-item.type-info { border-left: 4px solid var(--g-blue); }
+.feed-body#action-output .activity-item.type-success { border-left: 4px solid var(--g-green-mid); }
+.feed-body#action-output .activity-item.type-error { border-left: 4px solid var(--g-red); }
+.feed-body#action-output .activity-item.type-thinking { border-left: 4px solid var(--g-violet); }
+.feed-body#action-output .activity-item.type-status { border-left: 4px solid var(--g-amber); }
+.feed-body#action-output .activity-content { min-width: 0; }
+.feed-body#action-output .activity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+.feed-body#action-output .badge-info { background: var(--g-blue-light); color: var(--g-blue); }
+.feed-body#action-output .badge-success { background: var(--g-green-light); color: var(--g-green); }
+.feed-body#action-output .badge-error { background: var(--g-red-light); color: var(--g-red); }
+.feed-body#action-output .badge-thinking { background: var(--g-violet-light); color: var(--g-violet); }
+.feed-body#action-output .badge-status { background: var(--g-amber-light); color: var(--g-amber); }
+.feed-body#action-output .activity-message {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--md-on-surface);
+  word-break: break-word;
+}
+.feed-body#action-output .activity-timestamp {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--md-dim);
+}
+.feed-body#action-output .activity-pin-btn {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--md-surface-3);
+  background: var(--md-surface-1);
+  color: var(--md-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.feed-body#action-output .activity-pin-btn:hover {
+  color: var(--g-blue);
+  border-color: var(--g-blue);
+  background: var(--g-blue-light);
+}
+.feed-body#action-output .activity-pin-btn.pinned {
+  color: var(--g-amber);
+  border-color: var(--g-amber);
+  background: var(--g-amber-light);
+}
+.feed-body#action-output .console-placeholder {
+  padding: 18px 16px;
+  border-radius: 16px;
+  border: 1px dashed var(--md-surface-3);
+  color: var(--md-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(255,255,255,0.36);
+}
+@keyframes activityCardIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Inline reasoning drawer */
 .feed-reasoning-drawer {
   max-height: 0; overflow: hidden; opacity: 0;
@@ -1502,7 +1599,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
           <button class="pp" onclick="setPriority(this)">High</button>
           <button class="pp p-crit" onclick="setPriority(this)">Crit</button>
         </div>
-        <button class="goal-mic" title="Voice input" id="nl-mic-btn"><span class="ms sm">mic</span></button>
+        <button class="goal-mic" type="button" title="Voice input" id="nl-mic-btn" onclick="toggleVoiceInput()"><span class="ms sm">mic</span></button>
         <button class="goal-run" id="nl-submit-btn" onclick="submitGoal()"><span class="ms sm">play_arrow</span> Run</button>
         <select id="nl-priority" style="display:none">
           <option value="low">Low</option>
@@ -2029,6 +2126,37 @@ function renderFeed() {
     wrap.appendChild(div); wrap.appendChild(drawer); feed.appendChild(wrap);
   });
 }
+window.orchestraAppendSmartFeed = function(activity) {
+  const feed = document.getElementById('feed');
+  if (!feed) return;
+
+  const placeholder = feed.querySelector('.empty-state');
+  if (placeholder) placeholder.remove();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'feed-entry-wrapper';
+
+  const entry = document.createElement('div');
+  entry.className = 'feed-entry stream-new';
+  entry.style.opacity = '1';
+  entry.innerHTML = `
+    <div class="f-time">${activity.timestamp || new Date().toLocaleTimeString()}</div>
+    <div class="f-body">
+      <div class="f-agent" style="color:var(--g-blue);background:var(--g-blue-light);border:1px solid rgba(26,115,232,0.2)">
+        ${String(activity.type || 'info').toUpperCase()}
+      </div>
+      <div class="f-text">${activity.message || ''}</div>
+    </div>
+    <div class="f-explain-icon">🧠</div>
+  `;
+
+  wrap.appendChild(entry);
+  feed.prepend(wrap);
+
+  while (feed.children.length > 30) {
+    feed.removeChild(feed.lastElementChild);
+  }
+};
 function toggleFeedDrawer(idx) {
   if(openFeedIdx!==null&&openFeedIdx!==idx){const p=document.getElementById('drawer-'+openFeedIdx),pe=document.querySelector(`.feed-entry[data-idx="${openFeedIdx}"]`);if(p)p.classList.remove('open');if(pe)pe.classList.remove('active');}
   const d=document.getElementById('drawer-'+idx),e=document.querySelector(`.feed-entry[data-idx="${idx}"]`);if(!d)return;
@@ -4093,5 +4221,13 @@ function mobilNav(section, btn) {
      This script patches the replayTrace function on the trace page
 ══════════════════════════════════════ -->
 
-<script src="/static/app.js"></script>
+<script>
+(function() {
+  const src = window.location.protocol === 'file:' ? './app.js' : '/static/app.js';
+  const script = document.createElement('script');
+  script.src = src;
+  script.defer = false;
+  document.body.appendChild(script);
+})();
+</script>
 </body></html>

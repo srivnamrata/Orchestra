@@ -72,9 +72,12 @@ class GCPPubSubService:
         topic_path = self.publisher.topic_path(self.project_id, topic)
         message_json = json.dumps(message)
         
-        future = self.publisher.publish(topic_path, message_json.encode('utf-8'))
-        message_id = future.result()
-        logger.info(f"Published message {message_id} to {topic}")
+        try:
+            future = self.publisher.publish(topic_path, message_json.encode('utf-8'))
+            message_id = future.result()
+            logger.info(f"Published message {message_id} to {topic}")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to publish to GCP topic {topic}. Missing topic? Error: {e}")
     
     async def subscribe(self, topic: str, callback: Callable, context: Dict = None):
         """Subscribe to GCP Pub/Sub topic"""
@@ -87,12 +90,14 @@ class GCPPubSubService:
             asyncio.run(callback(data, context or {}))
             message.ack()
         
-        streaming_pull_future = self.subscriber.subscribe(
-            subscription_path, callback=message_callback
-        )
-        
-        self.subscriptions[topic] = streaming_pull_future
-        logger.info(f"Subscribed to {topic}")
+        try:
+            streaming_pull_future = self.subscriber.subscribe(
+                subscription_path, callback=message_callback
+            )
+            self.subscriptions[topic] = streaming_pull_future
+            logger.info(f"Subscribed to {topic}")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to subscribe to GCP topic {topic}. Missing subscription? Error: {e}")
 
 
 def create_pubsub_service(use_mock: bool = True, project_id: str = None) -> MockPubSubService:
