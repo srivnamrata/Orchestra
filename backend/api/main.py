@@ -28,6 +28,9 @@ from backend.services.llm_service import create_llm_service
 from backend.services.knowledge_graph_service import KnowledgeGraphService
 from backend.services.pubsub_service import create_pubsub_service
 from backend.services.live_data_fetcher import get_live_news, get_live_research
+from backend.services.github_service import create_github_service
+from backend.services.slack_service import create_slack_service
+from backend.services.email_service import create_email_service
 from backend.config import get_config
 
 # Configure logging
@@ -128,6 +131,11 @@ knowledge_graph = KnowledgeGraphService(firestore_client=firestore_client)
 critic_agent = CriticAgent(llm_service, knowledge_graph, pubsub_service)
 security_auditor = AuditorAgent(llm_service, knowledge_graph)
 orchestrator = OrchestratorAgent(llm_service, critic_agent, knowledge_graph, pubsub_service)
+
+# Initialize integration services
+github_service = create_github_service()
+slack_service = create_slack_service()
+email_service = create_email_service()
 
 # Proactive Monitor — starts its own background scan loop on startup
 proactive_monitor = ProactiveMonitorAgent(
@@ -2449,6 +2457,29 @@ async def global_exception_handler(request, exc):
         }
     )
 
+
+# ── Integration Endpoints ───────────────────────────────────────────────────
+
+@app.get("/api/github/activity")
+async def get_github_activity():
+    try:
+        return await github_service.get_recent_activity()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/slack/summary")
+async def get_slack_summary():
+    try:
+        return await slack_service.get_channel_summary()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/email/urgent")
+async def get_email_urgent():
+    try:
+        return await email_service.get_unread_summaries()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================================================
 # Start the server
