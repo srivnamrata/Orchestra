@@ -41,6 +41,8 @@ window.switchView = function(viewId) {
         const text = item.textContent.trim().toLowerCase();
         const matches = (viewId === 'dashboard' && (text.includes('dashboard') || text.includes('home'))) ||
                         (viewId === 'workflows' && text.includes('active workflows')) ||
+                        (viewId === 'tasks' && text.includes('all tasks')) ||
+                        (viewId === 'outputs' && text.includes('outputs')) ||
                         (viewId === 'trace' && text.includes('agent reasoning')) ||
                         (viewId === 'vibe-checks' && text.includes('vibe checks')) ||
                         (viewId === 'debates' && text.includes('debates')) ||
@@ -194,6 +196,15 @@ window.submitGoal = async function() {
 
 // ── Intelligence Demo Logic ─────────────────────────────────────────────────
 window.runDemo = async function(type) {
+    if (!type) {
+        // Handle global refresh from bottom button
+        window.runDemo('news');
+        window.runDemo('research');
+        window.runDemo('tasks');
+        window.runDemo('schedule');
+        return;
+    }
+
     const configs = {
         critic: { name: 'CRITIC',   endpoint: '/demonstrate-critic-agent', view: 'workflows' },
         vibe:   { name: 'AUDITOR',  endpoint: '/demonstrate-vibe-check',   view: 'vibe-checks' },
@@ -242,6 +253,10 @@ window.runDemo = async function(type) {
 };
 
 window.fetchIntel = function(type, btn) {
+    if (!type) {
+        window.runDemo();
+        return;
+    }
     window.switchIntel(type, btn);
     window.runDemo(type);
 };
@@ -344,13 +359,20 @@ function renderNews(articles) {
     const pane = document.getElementById('pane-news');
     if (!pane) return;
     const grid = pane.querySelector('.news-grid');
-    if (grid) grid.innerHTML = (articles || []).map(a => `
-        <div class="news-card">
-            <div class="news-source-row"><div class="news-favicon" style="background:var(--g-amber);color:white">N</div><span class="news-source-name">${a.source || 'News'}</span></div>
-            <div class="news-title">${a.title}</div>
-            <div class="news-actions"><button class="na-btn" onclick="window.open('${a.url}','_blank')">📖 Read</button></div>
-        </div>
-    `).join('');
+    if (grid) grid.innerHTML = (articles || []).map(a => {
+        const sourceName = (typeof a.source === 'object' && a.source !== null) ? (a.source.name || 'News') : (a.source || 'News');
+        return `
+            <div class="news-card">
+                <div class="news-source-row"><div class="news-favicon" style="background:var(--g-amber);color:white">${sourceName.charAt(0)}</div><span class="news-source-name">${sourceName}</span></div>
+                <div class="news-title">${a.title}</div>
+                <div class="news-actions">
+                    <button class="na-btn" onclick="window.open('${a.url}','_blank')">📖 Read</button>
+                    <button class="na-btn" onclick="activityFeed.log('Audio Summary starting for: ${a.title.replace(/'/g, "\\'")}','status','AUDITOR')">🎧 Listen</button>
+                    <button class="na-btn" onclick="activityFeed.log('Article saved to Knowledge Graph','success','KNOWLEDGE')">🔖 Save</button>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function renderResearch(papers) {
@@ -361,16 +383,20 @@ function renderResearch(papers) {
         <div class="news-card nc-arxiv">
             <div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white">R</div><span class="news-source-name">arXiv</span></div>
             <div class="news-title">${p.title}</div>
-            <div class="news-actions"><button class="na-btn" onclick="window.open('${p.url}','_blank')">📖 View</button></div>
+            <div class="news-actions">
+                <button class="na-btn" onclick="window.open('${p.url}','_blank')">📖 View</button>
+                <button class="na-btn" onclick="activityFeed.log('Generating audio summary for research paper…','status','AUDITOR')">🎧 Listen</button>
+                <button class="na-btn" onclick="activityFeed.log('Paper indexed in Knowledge Graph','success','KNOWLEDGE')">🔖 Save</button>
+            </div>
         </div>
     `).join('');
 }
 
 function renderTasks(tasks) {
     const pane = document.getElementById('pane-tasks');
-    if (!pane) return;
-    const grid = pane.querySelector('.task-intel-grid');
-    if (grid) grid.innerHTML = (tasks || []).map(t => {
+    const allTasksPane = document.getElementById('all-tasks-list');
+    
+    const html = (tasks || []).map(t => {
         const isDone = t.status === 'done';
         return `
             <div class="task-intel-item">
@@ -379,6 +405,9 @@ function renderTasks(tasks) {
             </div>
         `;
     }).join('');
+
+    if (pane) pane.querySelector('.task-intel-grid').innerHTML = html;
+    if (allTasksPane) allTasksPane.innerHTML = html;
 }
 
 function renderSchedule(events) {
@@ -448,6 +477,8 @@ function initUI() {
             const text = item.textContent.trim().toLowerCase();
             if (text.includes('home')) window.switchView('dashboard');
             else if (text.includes('active workflows')) window.switchView('workflows');
+            else if (text.includes('all tasks')) window.switchView('tasks');
+            else if (text.includes('outputs')) window.switchView('outputs');
             else if (text.includes('agent reasoning')) window.switchView('trace');
             else if (text.includes('vibe checks')) window.switchView('vibe-checks');
             else if (text.includes('debates')) window.switchView('debates');
