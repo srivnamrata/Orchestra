@@ -263,11 +263,21 @@ const activityFeed = {
                             <div class="p-label" style="font-size:10px; font-weight:800; color:var(--md-dim)">EFFICIENCY</div>
                         </div>
                     </div>
-                    <div style="font-weight:700; font-size:12px; margin-bottom:12px; text-transform:uppercase; color:var(--md-dim)">The Blunt Truth</div>
-                    <ul class="blunt-list" style="background:rgba(0,0,0,0.2); border-radius:12px; padding:16px; list-style:none">
-                        ${w.bottlenecks.map(b => `<li style="font-size:12px; margin-bottom:10px; color:var(--md-on-surface); display:flex; gap:8px"><span class="ms" style="color:var(--g-amber); font-size:14px">error_outline</span> ${b}</li>`).join('')}
-                    </ul>
-                    <div style="margin-top:20px; padding:16px; background:var(--g-amber-light); border-radius:12px; border:1px solid var(--g-amber)">
+                    <div style="font-weight:700; font-size:12px; margin-bottom:12px; text-transform:uppercase; color:var(--md-dim); margin-top:24px">The Path to Mastery</div>
+                    <div class="academy-grid" style="display:grid; grid-template-columns:1fr; gap:10px">
+                        ${(w.trainings || []).map(t => `
+                            <div class="academy-item" style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px; border:1px solid var(--md-surface-3)">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+                                    <div style="font-size:10px; font-weight:800; color:var(--g-amber); text-transform:uppercase">${t.category}</div>
+                                    <span class="ms" style="font-size:14px; color:var(--md-dim)">school</span>
+                                </div>
+                                <div style="font-size:13px; font-weight:700; color:var(--md-on-surface); margin-bottom:2px">${t.topic}</div>
+                                <div style="font-size:11px; color:var(--md-dim)">${t.benefit}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="margin-top:24px; padding:16px; background:var(--g-amber-light); border-radius:12px; border:1px solid var(--g-amber)">
                         <div style="font-weight:800; font-size:10px; color:var(--g-amber); text-transform:uppercase; margin-bottom:4px">Potential Unlock</div>
                         <div style="font-size:13px; font-weight:700; color:var(--md-on-surface)">${w.unlock}</div>
                     </div>
@@ -406,6 +416,11 @@ window.submitGoal = async function() {
                     "Git logs show functional code, but you're avoiding the complex refactor of the auth layer.",
                     "Email replies are professionally sound but lack the empathy needed for lead-dev influence.",
                     "Efficiency is low—you are clearing tasks, but they are the easy ones. The big goals remain stagnant."
+                ],
+                trainings: [
+                    { category: "Code", topic: "Event-Driven Microservices", benefit: "Unblock the auth layer bottleneck" },
+                    { category: "Comm", topic: "Verbal Presence in High-Stakes Meetings", benefit: "Influence without authority" },
+                    { category: "Soul", topic: "Energy Audit & Circadian Rhythm", benefit: "Match your hardest tasks to your peak energy" }
                 ],
                 unlock: "Stop checking emails and dedicate the next 2 hours to the Security Refactor."
             };

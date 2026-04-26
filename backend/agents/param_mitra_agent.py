@@ -34,18 +34,15 @@ Context for Audit:
 Respond in a compassionate but firm 'Guru' tone.
 Output JSON:
 {{
-  "guru_message": "A 3-sentence deep insight about the user's current state.",
-  "scores": {{
-    "code_mastery": number (0-100),
-    "communication": number (0-100),
-    "efficiency": number (0-100)
-  }},
-  "bottlenecks": [
-    "One blunt observation about code",
-    "One blunt observation about writing/meetings",
-    "One blunt observation about procrastination"
+  "guru_message": "...",
+  "scores": {{ "code_mastery": 0, "communication": 0, "efficiency": 0 }},
+  "bottlenecks": ["...", "...", "..."],
+  "trainings": [
+    {{ "category": "Code", "topic": "...", "benefit": "..." }},
+    {{ "category": "Comm", "topic": "...", "benefit": "..." }},
+    {{ "category": "Soul", "topic": "...", "benefit": "..." }}
   ],
-  "potential_unlock": "One thing they should do today to reach their full potential."
+  "potential_unlock": "..."
 }}
 """
         try:
