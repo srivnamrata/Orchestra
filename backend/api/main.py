@@ -245,12 +245,6 @@ class WorkflowStatusModel(BaseModel):
 # API Endpoints
 # ============================================================================
 
-@app.get("/health", tags=["Health"])
-async def health_check():
-    """Liveness probe for Cloud Run and Docker"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
-
-
 @app.get("/api/books")
 async def get_books(status: Optional[str] = None):
     from backend.database import get_all_books
