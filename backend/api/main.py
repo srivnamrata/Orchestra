@@ -2481,6 +2481,12 @@ async def get_email_urgent():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/feedback")
+async def submit_feedback(request: Request):
+    data = await request.json()
+    print(f"🎓 ACADEMY FEEDBACK: Agent={data.get('agent')} Type={data.get('type')}")
+    return {"status": "success", "message": "Feedback captured for learning loop"}
+
 # ============================================================================
 # Start the server
 # ============================================================================

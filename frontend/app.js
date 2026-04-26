@@ -131,6 +131,18 @@ const activityFeed = {
                         ${agent.toUpperCase()}
                     </div>
                     ${contentHtml}
+
+                    <div class="f-feedback-row">
+                        <span class="fb-label">Helpful?</span>
+                        <button class="fb-btn up" onclick="submitFeedback(this, 'up')">
+                            <span class="ms">thumb_up</span>
+                            <span class="fb-count">0</span>
+                        </button>
+                        <button class="fb-btn down" onclick="submitFeedback(this, 'down')">
+                            <span class="ms">thumb_down</span>
+                            <span class="fb-count">0</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="f-explain-icon">🧠</div>
             </div>
@@ -776,6 +788,30 @@ window.useSuggestion = function(text) {
         inp.focus();
         activityFeed.log(`Selected starter prompt: "${text}"`, 'info', 'SYSTEM');
     }
+};
+
+window.submitFeedback = function(btn, type) {
+    if (btn.classList.contains('active')) return;
+    
+    // Toggle active state
+    const row = btn.closest('.f-feedback-row');
+    row.querySelectorAll('.fb-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    // Increment count (local UI only for demo)
+    const countEl = btn.querySelector('.fb-count');
+    countEl.textContent = parseInt(countEl.textContent) + 1;
+    
+    // Log to system
+    const agent = btn.closest('.f-body').querySelector('.f-agent').textContent.trim();
+    activityFeed.log(`Feedback captured for ${agent}: ${type.toUpperCase()}`, 'status', 'ACADEMY');
+    
+    // Mock API call
+    fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent, type, timestamp: new Date().toISOString() })
+    }).catch(e => console.warn('Feedback API not yet live:', e));
 };
 
 window.setGoal = function(t) {
