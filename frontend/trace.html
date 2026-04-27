@@ -792,28 +792,19 @@ function renderTimeline(filter) {
           const typeColors = { decision:'#7c4dff', task:'#1a73e8', output:'#137333', error:'#d93025', handoff:'#007b83' };
           const typeColor = typeColors[ev.type] || a.color;
           bubble.style.setProperty('--event-color', typeColor);
+          const handoffBadge = (ev.handoffTo && ev.handoffTo !== agentId && LANE_AGENTS.includes(ev.handoffTo))
+            ? `<div style="margin-top:6px;display:inline-block;font-family:var(--font-mono);font-size:9px;background:${agentMap[ev.handoffTo]?.color||'#1a73e8'};color:white;padding:2px 8px;border-radius:100px;">→ ${agentMap[ev.handoffTo]?.name}</div>`
+            : '';
           bubble.innerHTML = `
             <div class="eb-type" style="color:${typeColor}">${ev.type.toUpperCase()}</div>
             <div class="eb-text">${ev.title}</div>
             <div class="eb-detail">${ev.detail}</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">
               ${(ev.tags||[]).map(t=>`<span class="eb-tag" style="background:${typeColor}18;color:${typeColor}">${t}</span>`).join('')}
-            </div>`;
+            </div>
+            ${handoffBadge}`;
           bubble.addEventListener('click', () => selectEvent(ev, bubble));
-          cell.style.cssText += ';flex-direction:column;align-items:stretch;justify-content:center;';
           cell.appendChild(bubble);
-
-          // Handoff badge — sits below the bubble, always fully visible
-          if(ev.handoffTo && ev.handoffTo !== agentId) {
-            const toIdx = LANE_AGENTS.indexOf(ev.handoffTo);
-            const fromIdx = LANE_AGENTS.indexOf(agentId);
-            if(toIdx !== -1 && fromIdx !== -1) {
-              const badge = document.createElement('div');
-              badge.style.cssText = `margin-top:4px;align-self:flex-end;font-family:var(--font-mono);font-size:9px;background:${agentMap[ev.handoffTo]?.color||'#1a73e8'};color:white;padding:2px 8px;border-radius:100px;display:inline-block;`;
-              badge.textContent = '→ ' + agentMap[ev.handoffTo]?.name;
-              cell.appendChild(badge);
-            }
-          }
         } else {
           cell.classList.add('lane-empty');
           cell.innerHTML = `<div style="width:1px;height:100%;background:var(--md-surface-2);margin:0 auto;border-radius:1px;"></div>`;

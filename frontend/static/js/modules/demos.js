@@ -33,14 +33,17 @@ export async function runDemo(type) {
     if (cfg.view) window.switchView(cfg.view);
     activityFeed.log(`🏃 Starting ${cfg.name} sequence…`, 'status', 'SYSTEM');
     try {
-        const method = ['tasks','schedule'].includes(type) ? 'GET' : 'POST';
+        const method  = ['tasks','schedule'].includes(type) ? 'GET' : 'POST';
+        const hasBody = type === 'debate';
         const res = await apiFetch(cfg.endpoint, {
             method,
-            headers: { 'Content-Type': 'application/json' },
-            body: type === 'debate' ? JSON.stringify({
-                action: { id: 'ui-demo', name: 'UI Strategy', type: 'workflow', impact: 'medium' },
-                executor_agent: 'orchestrator', reasoning: 'Demo run from redesigned UI',
-            }) : null,
+            ...(hasBody ? {
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: { id: 'ui-demo', name: 'UI Strategy', type: 'workflow', impact: 'medium' },
+                    executor_agent: 'orchestrator', reasoning: 'Demo run from redesigned UI',
+                }),
+            } : {}),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
