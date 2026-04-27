@@ -37,14 +37,38 @@ class OrchestratorAgent:
     5. Ensures execution and provides progress updates
     """
     
-    def __init__(self, llm_service, critic_agent, knowledge_graph, pubsub_service):
+    def __init__(self, llm_service, critic_agent, knowledge_graph, pubsub_service, event_bus=None):
         self.llm_service = llm_service
         self.critic_agent = critic_agent
         self.knowledge_graph = knowledge_graph
         self.pubsub = pubsub_service
+        self.event_bus = event_bus
         self.workflows: Dict[str, Dict] = {}  # workflow_id -> workflow state
         self.sub_agents = {}  # Will be populated with scheduler, task, knowledge agents
     
+    async def _think(self, agent: str, message: str, thought_type: str = "thought",
+                     context_id: Optional[str] = None,
+                     risk_level: Optional[str] = None):
+        """Push a 'thinking' event to the reasoning queue AND the global thought bus."""
+        event = {
+            "type":    thought_type,
+            "agent":   agent,
+            "message": message,
+            "context_id": context_id,
+            "ts":      datetime.now().strftime("%H:%M:%S"),
+        }
+        if risk_level:
+            event["risk_level"] = risk_level
+        logger.info(f"[{agent}] {message}")
+        
+        if self.event_bus:
+            role_map = {"orchestrator": "Orchestrator", "critic": "Critic Agent", "auditor": "Auditor", "knowledge": "Knowledge Agent"}
+            await self.event_bus.publish("thought", {
+                "agent": agent, "role": role_map.get(agent, agent.title()), 
+                "message": message, "type": thought_type, 
+                "context_id": context_id, "risk_level": risk_level
+            })
+
     def register_sub_agent(self, agent_type: str, agent_instance):
         """Register a sub-agent to be coordinated"""
         self.sub_agents[agent_type] = agent_instance
@@ -267,6 +291,7 @@ class OrchestratorAgent:
         """
         logger.info(f"Executing step {step_id}: {step.get('name')}")
         
+        await self._think("orchestrator", f"Executing step {step_id}: {step.get('name')}", context_id=workflow_id)
         agent_type = step.get("agent")
         if agent_type not in self.sub_agents:
             raise ValueError(f"No sub-agent of type '{agent_type}'")
@@ -361,6 +386,7 @@ class OrchestratorAgent:
             await self.pubsub.publish(f"workflow-{workflow_id}-replan-accepted", {
                 "reasoning":      replan_message.get("reasoning"),
                 "efficiency_gain": replan_message.get("efficiency_gain"),
+                "risk_level": "low", # Indicate a successful replan has low risk
             })
         else:
             logger.warning(f"Replan rejected by Critic")

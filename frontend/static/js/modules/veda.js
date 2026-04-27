@@ -52,6 +52,7 @@ export async function fetchBooks() {
                     <div style="display:flex;gap:6px">
                         <button class="na-btn" onclick="playAudio('${safe(b.title)} by ${safe(b.author||'')}. You are ${pct} percent through.')">🎧 Listen</button>
                         <button class="na-btn" onclick="activityFeed.log('Veda: Updating progress for ${safe(b.title)}...','status','VEDA')">✏️ Update</button>
+                        <button class="na-btn" style="border-color:var(--g-violet)" onclick="window.submitVeda('Give me a key insight from ${safe(b.title)} for my work')">🧠 Insight</button>
                     </div>
                 </div>`;
         }).join('');

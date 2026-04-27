@@ -412,31 +412,34 @@ Respond ONLY with valid JSON (no markdown):
 
     # ── Reasoning helpers ─────────────────────────────────────────────────────
 
-    async def _think(self, agent: str, message: str, thought_type: str = "thought"):
+    async def _think(self, agent: str, message: str, thought_type: str = "thought", context_id: Optional[str] = None, risk_level: Optional[str] = None, event_bus=None):
         """Push a 'thinking' event to the reasoning queue AND the global thought bus."""
         event = {
             "type":    thought_type,
             "agent":   agent,
             "message": message,
+            "context_id": context_id,
             "ts":      datetime.now().strftime("%H:%M:%S"),
         }
+        if risk_level:
+            event["risk_level"] = risk_level
         logger.info(f"[{agent}] {message}")
         try:
             self.reasoning_queue.put_nowait(event)
         except asyncio.QueueFull:
             pass
-        # Also broadcast to the global thought bus (Thought Trace sidebar)
-        try:
-            from backend.api.main import emit_thought
-            role_map = {
-                "orchestrator": "Orchestrator",
-                "critic":       "Critic Agent",
-                "auditor":      "Auditor",
-                "knowledge":    "Knowledge Agent",
-            }
-            emit_thought(agent, role_map.get(agent, agent.title()), message, thought_type)
-        except Exception:
-            pass
+
+        # Replace global import with Event Bus publication
+        if hasattr(self, 'event_bus') and self.event_bus:
+            role_map = {"orchestrator": "Orchestrator", "critic": "Critic Agent", "auditor": "Auditor", "knowledge": "Knowledge Agent"}
+            await self.event_bus.publish("thought", {
+                "agent": agent, 
+                "role": role_map.get(agent, agent.title()), 
+                "message": message, 
+                "type": thought_type, 
+                "context_id": context_id, 
+                "risk_level": risk_level
+            })
 
     async def _alert(self, agent: str, message: str):
         """Push a high-priority 'alert' event to the reasoning queue."""

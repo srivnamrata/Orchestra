@@ -237,6 +237,9 @@ Create a concrete execution plan with 3-6 steps. Each step must specify one of t
 - "knowledge" — gathers context or research (provide query)
 - "news" — fetches relevant news (provide topic)
 - "research" — finds research papers (provide topic)
+- "writer" — drafts reports, summaries, or email drafts (provide topic)
+- "coder" — performs code analysis, refactoring, or documentation (provide objective)
+- "liaison" — optimizes communication for tone and empathy (provide text)
 
 Respond ONLY with a valid JSON array, no markdown fences:
 [
@@ -293,6 +296,7 @@ Respond ONLY with a valid JSON array, no markdown fences:
             "detail": "Ensure goal is traceable before scheduling",
             "params": {"title": goal, "description": f"Auto-added by Critic: {goal}", "due_date": next_month, "priority": priority},
         })
+        yield _sse("celebrate", {"type": "efficiency", "message": "Critic Agent optimized the plan for traceability!"})
     else:
         yield think("critic", "Critic Agent",
             f"Plan looks clean. {len(steps)} steps, no circular dependencies detected. Approving.",
@@ -330,6 +334,11 @@ Respond ONLY with a valid JSON array, no markdown fences:
         yield think("auditor", "Auditor",
             "Intent alignment: ✅ goal is productivity-focused. PII check: ✅ clean. Approved for execution.",
             "finding")
+        
+        # Option 4: The "Safe Landing" for high-stakes goals
+        if priority.lower() in ["high", "critical"]:
+            yield _sse("celebrate", {"type": "safety", "message": "Security check passed for critical goal."})
+
         wf_store["auditor_reports"].append({
             "stage":           "goal_audit",
             "action_id":       f"{workflow_id}-goal",
@@ -586,6 +595,60 @@ Respond ONLY with a valid JSON array, no markdown fences:
                         "timestamp": ts(),
                     })
 
+            elif agent == "writer":
+                topic = params.get("topic", goal)
+                yield think("writer", "Writer Agent", f"Drafting document on: '{topic[:80]}'...", "action")
+                # Call real WriterAgent logic
+                from backend.agents.writer_agent import WriterAgent
+                agent_inst = WriterAgent(state.llm_service)
+                res = await agent_inst.execute(step, {})
+                
+                yield think("writer", "Writer Agent", f"✅ Draft complete: '{res.get('data',{}).get('title')}'", "result")
+                yield _sse("activity", {
+                    "type": "success", "category": "outputs",
+                    "message": f"✍️ Writer produced: <strong>{res.get('data',{}).get('title')}</strong>",
+                    "timestamp": ts(),
+                    "widget": {"type": "action-card", "title": res.get('data',{}).get('title'), "actions": ["Export PDF"]}
+                })
+
+            elif agent == "coder":
+                obj = params.get("objective", goal)
+                yield think("coder", "Coder Agent", f"Analyzing logic for: '{obj[:80]}'...", "action")
+                from backend.agents.coder_agent import CoderAgent
+                agent_inst = CoderAgent(state.llm_service)
+                res = await agent_inst.execute(step, {})
+
+                yield think("coder", "Coder Agent", "✅ Analysis complete. Efficiency optimizations found.", "result")
+                yield _sse("activity", {
+                    "type": "success", "category": "analysis",
+                    "message": f"💻 Coder Agent analyzed: <strong>{obj[:40]}</strong>",
+                    "timestamp": ts(),
+                    "widget": {
+                        "type": "progress-table",
+                        "data": [{"name": "Readability", "status": "Optimized", "pct": 90}]
+                    }
+                })
+
+            elif agent == "liaison":
+                txt = params.get("text", "Draft")
+                yield think("liaison", "Liaison Agent", "Refining communication tone for maximum impact...", "action")
+                from backend.agents.liaison_agent import LiaisonAgent
+                agent_inst = LiaisonAgent(state.llm_service)
+                res = await agent_inst.execute(step, {})
+
+                yield think("liaison", "Liaison Agent", "✅ Communication polished. Tone balanced.", "result")
+                yield _sse("activity", {
+                    "type": "success", "category": "status",
+                    "message": f"🤝 Liaison Agent optimized communication for empathy.",
+                    "timestamp": ts(),
+                    "widget": {
+                        "type": "action-card",
+                        "title": "Empathetic Rewrite",
+                        "description": res.get("revised", "Revised text ready."),
+                        "actions": ["Apply Rewrite"]
+                    }
+                })
+
             elif agent == "news":
                 topic = params.get("topic", goal)
                 yield think("news", "News Agent",
@@ -648,6 +711,10 @@ Respond ONLY with a valid JSON array, no markdown fences:
     yield think("critic", "Critic Agent",
         "Final audit: workflow executed within scope, no goal drift detected. Marking complete.",
         "finding")
+
+    # Option 2: Milestone completion for high priority work
+    if (tasks_made or events_made) and priority.lower() in ["high", "critical"]:
+        yield _sse("celebrate", {"type": "milestone", "message": "High-priority milestones established."})
 
     summary_parts = []
     if tasks_made:  summary_parts.append(f"<strong>{len(tasks_made)} task(s)</strong> created")
@@ -820,3 +887,15 @@ async def thought_trace_stream():
 @router.get("/knowledge-graph/export", tags=["Knowledge Graph"])
 async def export_knowledge_graph():
     return state.knowledge_graph.export_graph()
+
+@router.post("/seed-demo", tags=["Debug"])
+async def seed_demo_data():
+    """Trigger the insertion of demo data for onboarding."""
+    try:
+        from backend.insert_demo_data import insert_demo_tasks, insert_demo_calendar_events, insert_demo_notes
+        insert_demo_tasks()
+        insert_demo_calendar_events()
+        insert_demo_notes()
+        return {"status": "success", "message": "Demo data seeded successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -8,13 +8,15 @@ import uuid
 import logging
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+from backend.services.llm_utils import parse_llm_json
 from backend.database import create_book_in_db, get_all_books, update_book_progress, Book
 
 logger = logging.getLogger(__name__)
 
 class LibrarianAgent:
-    def __init__(self, llm_service):
+    def __init__(self, llm_service, event_bus=None):
         self.llm = llm_service
+        self.event_bus = event_bus
 
     async def process_command(self, text: str) -> Dict[str, Any]:
         """
@@ -38,9 +40,7 @@ If they want to add a book, intent is "add".
 """
         try:
             raw = await self.llm.call(prompt)
-            # Basic JSON extraction (assuming LLM returns clean JSON or markdown block)
-            import json
-            data = json.loads(raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip())
+            data = parse_llm_json(raw)
             
             return await self.execute_intent(data)
         except Exception as e:
@@ -69,6 +69,27 @@ If they want to add a book, intent is "add".
                 "status": "success"
             }
             
+        if intent == "insight":
+            # Logic to generate a summary or takeaway
+            prompt = f"Provide a brief, high-impact wisdom insight from the book '{title}' related to: {data.get('query', 'general productivity')}"
+            insight_text = await self.llm.call(prompt)
+            
+            if self.event_bus:
+                await self.event_bus.publish("thought", {
+                    "agent": "knowledge",
+                    "role": "Veda",
+                    "message": f"Deep-diving into '{title}' for wisdom...",
+                    "type": "thought"
+                })
+            
+            return {
+                "message": insight_text,
+                "book_title": title,
+                "intent": "insight",
+                "status": "success",
+                "widget_type": "action-card"
+            }
+
         if intent == "update":
             # Find the book by title (case-insensitive)
             # In a real app, we'd use fuzzy matching or a vector search

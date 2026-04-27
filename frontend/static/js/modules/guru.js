@@ -42,6 +42,19 @@ export async function runGuruAudit() {
 
         container.innerHTML = `
           ${a.summary?`<div class="run-card" style="background:var(--g-amber-light);border:1px solid rgba(176,96,0,0.15);margin-bottom:16px;padding:14px 16px"><div style="font-size:13px;font-weight:600;color:var(--md-on-surface)">${a.summary}</div></div>`:''}
+          <div class="run-card" style="margin-bottom:16px; text-align:center; background: linear-gradient(90deg, var(--g-amber-light), transparent)">
+              <div style="font-size:10px; font-weight:800; color:var(--g-amber); margin-bottom:8px">WEEKLY VIBE SCORE</div>
+              <div style="font-size:32px; font-weight:800; color:var(--g-amber)">${a.vibe_score || 75}%</div>
+              <div class="run-bar-bg" style="margin:10px auto; width:200px"><div class="run-bar-fill" style="width:${a.vibe_score || 75}%; background:var(--g-amber)"></div></div>
+              <div style="font-size:11px; color:var(--md-dim)">Alignment with long-term purpose</div>
+          </div>
+          ${a.strategic_alignment ? `
+          <div class="run-card" style="margin-bottom:16px; border-left: 4px solid var(--g-violet)">
+            <div style="font-size:10px; font-weight:800; color:var(--g-violet); margin-bottom:4px">NORTH STAR ALIGNMENT: ${a.strategic_alignment.score}%</div>
+            <div style="font-size:12px; color:var(--md-on-surface); line-height:1.5">${a.strategic_alignment.assessment}</div>
+            <div style="font-size:11px; color:var(--g-violet); font-weight:600; margin-top:6px">💡 ${a.strategic_alignment.suggestion}</div>
+          </div>
+          ` : ''}
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:16px">
             ${card('code','var(--g-blue)','Code Quality',a.code)}
             ${card('mail','#7c3aed','Communication',a.communication)}

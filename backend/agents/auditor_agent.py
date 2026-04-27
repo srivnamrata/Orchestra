@@ -87,7 +87,7 @@ class AuditorAgent:
     "Don't block good ideas, but DO block dangerous ones."
     """
     
-    def __init__(self, llm_service, knowledge_graph, user_goals=None):
+    def __init__(self, llm_service, knowledge_graph, user_goals=None, pubsub_service=None):
         self.llm_service = llm_service
         self.knowledge_graph = knowledge_graph
         self.user_goals = user_goals or {}  # Long-term user objectives
@@ -99,6 +99,7 @@ class AuditorAgent:
             "email", "phone", "address", "home",
             "salary", "account number"
         ]
+        self.pubsub = pubsub_service
     
     async def audit_action(self, executor_agent: str, 
                           action: Dict[str, Any],
@@ -167,6 +168,14 @@ class AuditorAgent:
             audit_duration_ms=duration_ms
         )
         
+        if self.pubsub:
+            await self.pubsub.publish("system-vibe-updates", {
+                "source": "AuditorAgent",
+                "overall_risk": report.overall_risk.value,
+                "approval_status": report.approval_status,
+                "timestamp": datetime.now().isoformat()
+            })
+
         # Store in history
         self.audit_history.append(report)
         

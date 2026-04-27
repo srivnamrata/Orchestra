@@ -70,9 +70,18 @@ export async function submitGoal() {
                     } else if (event === 'render-research') {
                         renderResearch(payload.papers || []);
                         if (window.switchIntel) window.switchIntel('research');
+                    } else if (event === 'celebrate') {
+                        activityFeed.log(`✨ <strong>Celebration:</strong> ${payload.message}`, 'success', 'SYSTEM');
+                        if (typeof confetti === 'function') {
+                            confetti({ 
+                                particleCount: 150, 
+                                spread: 70, 
+                                origin: { y: 0.6 }, 
+                                colors: ['#1a73e8','#34a853','#fbbc04','#ea4335'] 
+                            });
+                        }
                     } else if (event === 'done') {
                         activityFeed.log('✅ Workflow execution completed.', 'success', 'SYSTEM');
-                        if (typeof confetti === 'function') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#1a73e8','#34a853','#fbbc04','#ea4335'] });
                         showCompletionToast(goal);
                     }
                 } catch (e) { console.warn('SSE Parse Error:', e); }
