@@ -336,7 +336,7 @@ html.dark .swimlane:hover { background: rgba(255,255,255,0.04); }
   width: 100%; cursor: pointer;
   transition: all 0.15s;
   box-shadow: 0 1px 3px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.5);
-  position: relative; overflow: visible;
+  position: relative; overflow: hidden;
 }
 .event-bubble::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
@@ -800,19 +800,18 @@ function renderTimeline(filter) {
               ${(ev.tags||[]).map(t=>`<span class="eb-tag" style="background:${typeColor}18;color:${typeColor}">${t}</span>`).join('')}
             </div>`;
           bubble.addEventListener('click', () => selectEvent(ev, bubble));
+          cell.style.cssText += ';flex-direction:column;align-items:stretch;justify-content:center;';
           cell.appendChild(bubble);
 
-          // Handoff arrow if needed
+          // Handoff badge — sits below the bubble, always fully visible
           if(ev.handoffTo && ev.handoffTo !== agentId) {
             const toIdx = LANE_AGENTS.indexOf(ev.handoffTo);
             const fromIdx = LANE_AGENTS.indexOf(agentId);
             if(toIdx !== -1 && fromIdx !== -1) {
-              // We'll handle visual handoff via a spanning div approach — just note it
-              bubble.style.position = 'relative';
               const badge = document.createElement('div');
-              badge.style.cssText = `display:inline-block;margin-top:6px;font-family:var(--font-mono);font-size:9px;background:${agentMap[ev.handoffTo]?.color||'#1a73e8'};color:white;padding:2px 8px;border-radius:100px;`;
+              badge.style.cssText = `margin-top:4px;align-self:flex-end;font-family:var(--font-mono);font-size:9px;background:${agentMap[ev.handoffTo]?.color||'#1a73e8'};color:white;padding:2px 8px;border-radius:100px;display:inline-block;`;
               badge.textContent = '→ ' + agentMap[ev.handoffTo]?.name;
-              bubble.appendChild(badge);
+              cell.appendChild(badge);
             }
           }
         } else {
