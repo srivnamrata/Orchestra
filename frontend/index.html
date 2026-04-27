@@ -2065,16 +2065,16 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
     <div class="nav-item" data-view="outputs" onclick="window.switchView('outputs')"><span class="ms">folder_open</span> Outputs</div>
     
     <div class="nav-label">Specialists</div>
-    <div class="nav-item" data-view="news" onclick="window.switchView('dashboard'); if(window.fetchIntel) window.fetchIntel('news'); else { document.querySelectorAll('.intel-pane').forEach(p=>p.classList.remove('active')); var p=document.getElementById('pane-news'); if(p)p.classList.add('active'); }"><span class="ms">newspaper</span> News</div>
-    <div class="nav-item" data-view="research" onclick="window.switchView('dashboard'); if(window.fetchIntel) window.fetchIntel('research'); else { document.querySelectorAll('.intel-pane').forEach(p=>p.classList.remove('active')); var p=document.getElementById('pane-research'); if(p)p.classList.add('active'); }"><span class="ms">science</span> Research</div>
-    <div class="nav-item" data-view="outputs" onclick="window.switchView('outputs')"><span class="ms">terminal</span> Coder</div>
-    <div class="nav-item" data-view="outputs" onclick="window.switchView('outputs')"><span class="ms">edit_note</span> Writer</div>
+    <div class="nav-item" data-view="news" onclick="window.switchSpecialist('news')"><span class="ms">newspaper</span> News</div>
+    <div class="nav-item" data-view="research" onclick="window.switchSpecialist('research')"><span class="ms">science</span> Research</div>
+    <div class="nav-item" data-view="coder" onclick="window.switchView('outputs')"><span class="ms">terminal</span> Coder</div>
+    <div class="nav-item" data-view="writer" onclick="window.switchView('outputs')"><span class="ms">edit_note</span> Writer</div>
 
     <div class="nav-label">System Monitoring</div>
     <div class="nav-item" data-view="trace" onclick="window.switchView('trace')" style="cursor:pointer"><span class="ms">psychology</span> Agent Reasoning</div>
     <div class="nav-item" data-view="agents" onclick="window.switchView('agents')"><span class="ms">hub</span> Agent Health <span class="nav-badge nb-green">4 live</span></div>
     <div class="nav-item" data-view="debates" onclick="window.switchView('debates')"><span class="ms">swords</span> Debates</div>
-    <div class="nav-item" data-view="settings" onclick="window.switchView('settings')"><span class="ms">shield</span> Safety Audit</div>
+    <div class="nav-item" data-view="vibe-checks" onclick="window.switchView('vibe-checks')"><span class="ms">shield</span> Safety Audit</div>
     
     <div class="nav-label">Integrations</div>
     <div class="nav-item" data-view="github" onclick="window.switchView('dashboard'); window.fetchIntel('github')"><span class="ms">code</span> GitHub <span class="nav-badge nb-blue">stub</span></div>
@@ -2153,7 +2153,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
         <div class="g-sub">3 workflows active · 1 pending debate · 7 tasks completed</div>
         <div class="g-btns" style="margin-top: 16px">
           <button class="g-btn outline" onclick="window.switchView('debates')"><span class="ms sm">swords</span> Agent Debate</button>
-          <button class="g-btn outline" onclick="window.switchView('settings')"><span class="ms sm">shield</span> Safety Audit</button>
+          <button class="g-btn outline" onclick="window.switchView('vibe-checks')"><span class="ms sm">shield</span> Safety Audit</button>
         </div>
       </div>
       <div class="g-right">
@@ -2883,6 +2883,22 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
     }
     if (navItem) navItem.classList.add('active');
   };
+  window.switchSpecialist = function(type) {
+    // Ensure we are on the dashboard view
+    window.switchView('dashboard');
+    // Force highlight of the specialist agent in sidebar
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    const item = document.querySelector(`.nav-item[data-view="${type}"]`);
+    if(item) item.classList.add('active');
+    
+    // Update Intelligence panel pane
+    if(window.fetchIntel) {
+      window.fetchIntel(type);
+    }
+    const titleEl = document.querySelector('.page-title');
+    if (titleEl) titleEl.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
   window.fetchIntel = window.fetchIntel || function(type, btn) {
     if (!type) return;
     document.querySelectorAll('.intel-tab').forEach(t => t.classList.remove('active'));
