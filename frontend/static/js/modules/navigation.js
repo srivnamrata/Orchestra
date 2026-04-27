@@ -1,5 +1,3 @@
-import { activityFeed } from './feed.js';
-
 export function showCompletionToast(goalText) {
     const toast = document.getElementById('completionToast');
     const el    = document.getElementById('ct-goal-text');
@@ -8,23 +6,27 @@ export function showCompletionToast(goalText) {
 }
 
 export function switchView(viewId) {
-    document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
-        const text = item.textContent.trim().toLowerCase();
-        const active =
-            (viewId === 'dashboard'   && (text.includes('dashboard') || text.includes('home'))) ||
-            (viewId === 'workflows'   && text.includes('active workflow')) ||
-            (viewId === 'tasks'       && text.includes('all task')) ||
-            (viewId === 'outputs'     && text.includes('output')) ||
-            (viewId === 'trace'       && text.includes('agent reasoning')) ||
-            (viewId === 'vibe-checks' && text.includes('vibe')) ||
-            (viewId === 'debates'     && text.includes('debate')) ||
-            (viewId === 'settings'    && (text.includes('setting') || text.includes('safety')));
-        item.classList.toggle('active', active);
-    });
+    // Update nav item active state — prefer data-view match, fall back to text
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    let navItem = document.querySelector(`.nav-item[data-view="${viewId}"]`);
+    if (!navItem) {
+        const label = viewId.replace(/-/g, ' ').toLowerCase();
+        navItem = Array.from(document.querySelectorAll('.nav-item'))
+            .find(i => i.textContent.trim().toLowerCase().includes(label));
+    }
+    if (navItem) navItem.classList.add('active');
 
-    document.querySelectorAll('.view-section').forEach(v => {
-        v.style.display = v.id === `view-${viewId}` ? '' : 'none';
-    });
+    // Show target view (CSS: .view { display:none } .view.active { display:block })
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const target = document.getElementById(viewId);
+    if (target) target.classList.add('active');
+
+    // Update page title
+    const titleEl = document.querySelector('.page-title');
+    if (titleEl) {
+        const label = viewId.replace(/-/g, ' ');
+        titleEl.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+    }
 
     const bar = document.getElementById('back-dash-bar');
     if (bar) bar.style.display = viewId === 'dashboard' ? 'none' : 'flex';
