@@ -1,8 +1,14 @@
 """
-Firestore Schema Definitions
+Firestore schemas for research and news agent content.
 
-Defines all Firestore collection schemas, validation rules, and database indexes
-for the multi-agent productivity system.
+Ownership boundary
+------------------
+These schemas are the ONLY Firestore schemas used by the web API layer.
+They cover content data that genuinely belongs in Firestore's document model:
+  ResearchArticle, CustomResearchSummary, NewsArticle, CustomNewsSummary.
+
+Tasks, Notes, and CalendarEvents are owned by database.py (SQLAlchemy).
+Audit trail schemas live in mcp_tools/firestore_schemas.py.
 """
 
 from dataclasses import dataclass, field, asdict
@@ -432,3 +438,144 @@ def validate_document(collection_name: str, document: Dict[str, Any]) -> tuple[b
                 )
     
     return len(errors) == 0, errors
+
+
+# ============================================================================
+# MCP AUDIT SCHEMAS  (formerly mcp_tools/firestore_schemas.py)
+#
+# Ownership: these collections are written by MCP servers and are append-only
+# audit/config data.  They are NOT duplicates of SQLAlchemy models — Tasks,
+# Notes, and CalendarEvents are owned exclusively by database.py.
+# ============================================================================
+
+from dataclasses import dataclass as _dc
+
+
+@_dc
+class AuditEvent:
+    """Append-only audit event written by MCP servers."""
+    id: str
+    event_type: str
+    source: str
+    action: str = ""
+    status: str = "processed"
+    timestamp: str = ""
+    user_id: Optional[str] = None
+    resource_id: Optional[str] = None
+    resource_type: Optional[str] = None
+    data: Dict[str, Any] = None
+    result: Dict[str, Any] = None
+    error: Optional[str] = None
+    metadata: Dict[str, Any] = None
+    retention_days: int = 90
+
+    def to_dict(self) -> Dict[str, Any]:
+        from datetime import datetime as _dt
+        return {
+            "id":             self.id,
+            "event_type":     self.event_type,
+            "source":         self.source,
+            "action":         self.action,
+            "status":         self.status,
+            "timestamp":      self.timestamp or _dt.utcnow().isoformat(),
+            "user_id":        self.user_id,
+            "resource_id":    self.resource_id,
+            "resource_type":  self.resource_type,
+            "data":           self.data or {},
+            "result":         self.result or {},
+            "error":          self.error,
+            "metadata":       self.metadata or {},
+            "retention_days": self.retention_days,
+        }
+
+
+@_dc
+class AccessLog:
+    """Per-request access record."""
+    id: str
+    user_id: str
+    resource_id: str
+    resource_type: str
+    access_type: str
+    timestamp: str = ""
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    duration_ms: int = 0
+    success: bool = True
+    error_message: Optional[str] = None
+    metadata: Dict[str, Any] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        from datetime import datetime as _dt
+        return {
+            "id":            self.id,
+            "user_id":       self.user_id,
+            "resource_id":   self.resource_id,
+            "resource_type": self.resource_type,
+            "access_type":   self.access_type,
+            "timestamp":     self.timestamp or _dt.utcnow().isoformat(),
+            "ip_address":    self.ip_address,
+            "user_agent":    self.user_agent,
+            "duration_ms":   self.duration_ms,
+            "success":       self.success,
+            "error_message": self.error_message,
+            "metadata":      self.metadata or {},
+        }
+
+
+@_dc
+class SystemConfig:
+    """Runtime configuration key/value stored in Firestore."""
+    key: str
+    value: Any
+    type: str
+    description: str = ""
+    updated_at: str = ""
+    updated_by: str = ""
+    is_secret: bool = False
+    environment: str = "production"
+
+    def to_dict(self) -> Dict[str, Any]:
+        from datetime import datetime as _dt
+        return {
+            "key":         self.key,
+            "value":       self.value,
+            "type":        self.type,
+            "description": self.description,
+            "updated_at":  self.updated_at or _dt.utcnow().isoformat(),
+            "updated_by":  self.updated_by,
+            "is_secret":   self.is_secret,
+            "environment": self.environment,
+        }
+
+
+# Merge audit collection definitions into the shared registry
+FIRESTORE_COLLECTION_DEFINITIONS.update({
+    "audit_events": {
+        "description": "Append-only audit trail from all MCP servers",
+        "indexes": [
+            ["timestamp", "source"],
+            ["event_type", "timestamp"],
+            ["user_id", "timestamp"],
+            ["resource_id"],
+            ["status"],
+        ],
+    },
+    "access_logs": {
+        "description": "Per-request access records",
+        "indexes": [
+            ["user_id", "timestamp"],
+            ["resource_id"],
+            ["access_type", "timestamp"],
+        ],
+    },
+    "system_config": {
+        "description": "Runtime configuration key/value store",
+        "indexes": [["environment", "key"]],
+    },
+})
+
+TTL_POLICIES = {
+    "audit_events": 90,   # days
+    "access_logs":  30,   # days
+}

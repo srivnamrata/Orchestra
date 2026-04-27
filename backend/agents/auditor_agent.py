@@ -13,6 +13,7 @@ This agent acts as a peer-reviewer, assessing:
 
 import json
 import asyncio
+from backend.services.llm_utils import parse_llm_json
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
@@ -224,14 +225,14 @@ class AuditorAgent:
         
         try:
             response = await self.llm_service.call(prompt)
-            analysis = json.loads(response)
-        except:
+            analysis = parse_llm_json(response)
+        except Exception:
             analysis = {
                 "is_aligned": True,
                 "alignment_score": 0.5,
                 "concerns": [],
                 "severity": "medium",
-                "reasoning": "Unable to assess (mock mode)"
+                "reasoning": "Unable to assess (mock mode)",
             }
         
         severity_map = {
@@ -299,7 +300,7 @@ class AuditorAgent:
         
         try:
             response = await self.llm_service.call(prompt)
-            analysis = json.loads(response)
+            analysis = parse_llm_json(response)
         except:
             analysis = {
                 "pii_detected": len(found_pii) > 0,
@@ -374,7 +375,7 @@ class AuditorAgent:
         
         try:
             response = await self.llm_service.call(prompt)
-            analysis = json.loads(response)
+            analysis = parse_llm_json(response)
         except:
             analysis = {
                 "has_conflicts": False,
@@ -441,7 +442,7 @@ class AuditorAgent:
         
         try:
             response = await self.llm_service.call(prompt)
-            analysis = json.loads(response)
+            analysis = parse_llm_json(response)
         except:
             analysis = {
                 "risk_level": "medium",
@@ -496,7 +497,7 @@ class AuditorAgent:
         
         try:
             response = await self.llm_service.call(prompt)
-            analysis = json.loads(response)
+            analysis = parse_llm_json(response)
         except:
             analysis = {
                 "has_better_alternative": False,

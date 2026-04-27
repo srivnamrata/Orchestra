@@ -1,23 +1,24 @@
 """
-Firestore Adapter
+Firestore Adapter — MCP tool layer (audit trail, system config).
 
-Handles all Firestore operations for the MCP system
-Provides CRUD operations and query capabilities across all collections
+This adapter is used by the MCP server subsystem.  It is NOT the persistence
+layer for the web API — Tasks, Notes, and CalendarEvents are owned by
+database.py (SQLAlchemy).  This adapter handles only MCP-specific collections:
+AuditEvent, AccessLog, SystemConfig.
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Type, Typevar
+from typing import Dict, List, Any, Optional, Type, TypeVar
 from datetime import datetime
-from abc import ABC, abstractmethod
 
-from firestore_schemas import (
-    Task, CalendarEvent, Note, Event, Project, AccessLog, SystemConfig,
-    FIRESTORE_COLLECTION_DEFINITIONS, TTL_POLICIES, DATA_VALIDATION_RULES
+from backend.services.firestore_schemas import (
+    AuditEvent, AccessLog, SystemConfig,
+    FIRESTORE_COLLECTION_DEFINITIONS, DATA_VALIDATION_RULES,
 )
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')  # For generic type hints
+T = TypeVar("T")
 
 
 class FirestoreAdapter:
@@ -330,114 +331,39 @@ class FirestoreAdapter:
             return {}
     
     # ========================================================================
-    # Task Operations
+    # Audit Event Operations
+    # Tasks / Notes / CalendarEvents are managed by database.py (SQLAlchemy).
+    # This adapter only handles MCP-specific audit and config collections.
     # ========================================================================
-    
-    async def create_task(self, task: Task) -> Dict[str, Any]:
-        """Create a task"""
-        return await self.create("tasks", task.id, task.to_dict())
-    
-    async def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """Get a task"""
-        return await self.read("tasks", task_id)
-    
-    async def update_task(self, task_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
-        """Update a task"""
-        return await self.update("tasks", task_id, updates)
-    
-    async def delete_task(self, task_id: str) -> bool:
-        """Delete a task"""
-        return await self.delete("tasks", task_id)
-    
-    async def query_tasks(self, query_filters: List[tuple] = None, limit: int = None) -> List[Dict[str, Any]]:
-        """Query tasks with filters"""
-        return await self.query("tasks", query_filters, order_by="created_at", limit=limit)
-    
-    # ========================================================================
-    # Calendar Event Operations
-    # ========================================================================
-    
-    async def create_event(self, event: CalendarEvent) -> Dict[str, Any]:
-        """Create a calendar event"""
-        return await self.create("calendar_events", event.id, event.to_dict())
-    
-    async def get_event(self, event_id: str) -> Optional[Dict[str, Any]]:
-        """Get a calendar event"""
-        return await self.read("calendar_events", event_id)
-    
-    async def update_event(self, event_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
-        """Update a calendar event"""
-        return await self.update("calendar_events", event_id, updates)
-    
-    async def delete_event(self, event_id: str) -> bool:
-        """Delete a calendar event"""
-        return await self.delete("calendar_events", event_id)
-    
-    async def query_events(self, query_filters: List[tuple] = None, limit: int = None) -> List[Dict[str, Any]]:
-        """Query calendar events"""
-        return await self.query("calendar_events", query_filters, order_by="start_time", limit=limit)
-    
-    # ========================================================================
-    # Note Operations
-    # ========================================================================
-    
-    async def create_note(self, note: Note) -> Dict[str, Any]:
-        """Create a note"""
-        return await self.create("notes", note.id, note.to_dict())
-    
-    async def get_note(self, note_id: str) -> Optional[Dict[str, Any]]:
-        """Get a note"""
-        return await self.read("notes", note_id)
-    
-    async def update_note(self, note_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
-        """Update a note"""
-        return await self.update("notes", note_id, updates)
-    
-    async def delete_note(self, note_id: str) -> bool:
-        """Delete a note"""
-        return await self.delete("notes", note_id)
-    
-    async def search_notes(self, search_term: str, limit: int = None) -> List[Dict[str, Any]]:
-        """Search notes by text"""
-        results = await self.search("notes", search_term, ["title", "content", "tags"])
-        if limit:
-            results = results[:limit]
-        return results
-    
-    # ========================================================================
-    # Event (Audit Trail) Operations
-    # ========================================================================
-    
-    async def create_event_log(self, event: Event) -> Dict[str, Any]:
-        """Create an event log (audit trail)"""
-        return await self.create("events", event.id, event.to_dict())
-    
-    async def get_event_log(self, event_id: str) -> Optional[Dict[str, Any]]:
-        """Get an event log"""
-        return await self.read("events", event_id)
-    
-    async def query_event_logs(self, query_filters: List[tuple] = None, limit: int = None) -> List[Dict[str, Any]]:
-        """Query event logs"""
-        return await self.query("events", query_filters, order_by="timestamp", limit=limit)
-    
+
+    async def create_audit_event(self, event: AuditEvent) -> Dict[str, Any]:
+        """Append an audit event to the Firestore audit trail."""
+        return await self.create("audit_events", event.id, event.to_dict())
+
+    async def get_audit_event(self, event_id: str) -> Optional[Dict[str, Any]]:
+        return await self.read("audit_events", event_id)
+
+    async def query_audit_events(self, query_filters: List[tuple] = None,
+                                  limit: int = None) -> List[Dict[str, Any]]:
+        return await self.query("audit_events", query_filters,
+                                order_by="timestamp", limit=limit)
+
     # ========================================================================
     # Access Log Operations
     # ========================================================================
-    
+
     async def create_access_log(self, access_log: AccessLog) -> Dict[str, Any]:
-        """Create an access log"""
         return await self.create("access_logs", access_log.id, access_log.to_dict())
-    
+
     async def query_access_logs(self, user_id: str = None, resource_id: str = None,
-                               limit: int = None) -> List[Dict[str, Any]]:
-        """Query access logs"""
+                                limit: int = None) -> List[Dict[str, Any]]:
         filters = []
         if user_id:
             filters.append(("user_id", "==", user_id))
         if resource_id:
             filters.append(("resource_id", "==", resource_id))
-        
-        return await self.query("access_logs", filters or None, order_by="timestamp", limit=limit)
+        return await self.query("access_logs", filters or None,
+                                order_by="timestamp", limit=limit)
     
     # ========================================================================
     # Utility Methods

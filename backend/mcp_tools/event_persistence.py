@@ -12,8 +12,8 @@ from typing import Dict, List, Any, Optional, Callable
 from datetime import datetime, timedelta
 from dataclasses import asdict
 
-from firestore_adapter import FirestoreAdapter
-from firestore_schemas import Event, AccessLog
+from backend.mcp_tools.firestore_adapter import FirestoreAdapter
+from backend.services.firestore_schemas import AuditEvent, AccessLog
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class EventLogger:
             firestore_adapter: FirestoreAdapter instance for persistence
         """
         self.adapter = firestore_adapter
-        self._event_queue: List[Event] = []
+        self._event_queue: List[AuditEvent] = []
         self._queue_lock = asyncio.Lock()
         self._is_running = False
         self._processor_task = None
@@ -87,7 +87,7 @@ class EventLogger:
         """
         event_id = str(uuid.uuid4())
         
-        event = Event(
+        event = AuditEvent(
             id=event_id,
             event_type=event_type,
             source=source,
@@ -101,7 +101,7 @@ class EventLogger:
             result=result or {},
             error=error,
             metadata=metadata or {},
-            retention_days=90
+            retention_days=90,
         )
         
         async with self._queue_lock:
@@ -174,7 +174,7 @@ class EventLogger:
         flushed_count = 0
         for event in events_to_flush:
             try:
-                await self.adapter.create_event_log(event)
+                await self.adapter.create_audit_event(event)
                 flushed_count += 1
             except Exception as e:
                 logger.error(f"Error flushing event {event.id}: {e}")

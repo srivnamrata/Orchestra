@@ -11,7 +11,7 @@ Connection strategy:
 import os
 import logging
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, Float, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import QueuePool, StaticPool
 
@@ -193,13 +193,62 @@ class Book(Base):
     finished_at  = Column(DateTime,    nullable=True)
 
 
+class WorkflowState(Base):
+    """Persists live workflow execution state so it survives instance restarts."""
+    __tablename__ = "workflow_state"
+    id             = Column(Integer,    primary_key=True, index=True)
+    workflow_id    = Column(String(32), unique=True, index=True, nullable=False)
+    goal           = Column(Text,       nullable=False)
+    priority       = Column(String(20), default="medium")
+    status         = Column(String(20), default="planning")   # planning|executing|completed|failed|replanned
+    plan_json      = Column(Text,       nullable=True)         # JSON-serialised execution plan
+    results_json   = Column(Text,       nullable=True)         # JSON-serialised step results
+    reasoning_json = Column(Text,       nullable=True)         # JSON: {critic_findings, auditor_reports, step_reasoning}
+    error          = Column(Text,       nullable=True)
+    started_at     = Column(DateTime,   default=datetime.utcnow, index=True)
+    updated_at     = Column(DateTime,   default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at   = Column(DateTime,   nullable=True)
+
+
+class CriticDecision(Base):
+    """Persists every autonomous replan decision made by the Critic Agent."""
+    __tablename__ = "critic_decisions"
+    id                 = Column(Integer,    primary_key=True, index=True)
+    workflow_id        = Column(String(32), index=True, nullable=False)
+    reasoning          = Column(Text,       nullable=False)
+    efficiency_gain    = Column(Float,      default=0.0)
+    confidence_score   = Column(Float,      default=0.0)
+    original_plan_json = Column(Text,       nullable=True)
+    revised_plan_json  = Column(Text,       nullable=True)
+    accepted           = Column(Boolean,    default=True)
+    replanned_at       = Column(DateTime,   default=datetime.utcnow, index=True)
+
+
 # ============================================================================
 # INIT
 # ============================================================================
 
+def _migrate_add_columns() -> None:
+    """Idempotent: add new columns to existing tables without a full migration tool."""
+    engine = get_engine()
+    # (table, column, DDL type)
+    additions = [
+        ("workflow_state", "reasoning_json", "TEXT"),
+    ]
+    with engine.connect() as conn:
+        for table, col, col_type in additions:
+            try:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+                conn.commit()
+                logger.info(f"✅ Migration: added {table}.{col}")
+            except Exception:
+                pass  # column already exists — safe to ignore
+
+
 def init_db():
     try:
         Base.metadata.create_all(bind=get_engine())
+        _migrate_add_columns()
         logger.info("✅ Database schema ready")
     except Exception as e:
         logger.error(f"❌ init_db failed: {e}")
@@ -485,5 +534,167 @@ def update_book_progress(book_id, current_page, status=None):
         return b
     except Exception as e:
         db.rollback(); raise
+    finally:
+        db.close()
+
+
+# ============================================================================
+# WORKFLOW STATE  (live execution state — survives restarts)
+# ============================================================================
+
+def save_workflow_state(workflow_id, goal, priority="medium", status="planning"):
+    db = get_session()
+    try:
+        ws = WorkflowState(workflow_id=workflow_id, goal=goal,
+                           priority=priority, status=status)
+        db.add(ws); db.commit()
+        return ws
+    except Exception as e:
+        db.rollback(); logger.warning(f"save_workflow_state failed: {e}")
+    finally:
+        db.close()
+
+
+def get_workflow_state(workflow_id):
+    db = get_session()
+    try:
+        return db.query(WorkflowState).filter(
+            WorkflowState.workflow_id == workflow_id
+        ).first()
+    finally:
+        db.close()
+
+
+def update_workflow_state(workflow_id, **kwargs):
+    db = get_session()
+    try:
+        ws = db.query(WorkflowState).filter(
+            WorkflowState.workflow_id == workflow_id
+        ).first()
+        if ws:
+            for k, v in kwargs.items():
+                if hasattr(ws, k): setattr(ws, k, v)
+            ws.updated_at = datetime.utcnow()
+            if kwargs.get("status") in ("completed", "failed", "replanned"):
+                ws.completed_at = ws.completed_at or datetime.utcnow()
+            db.commit()
+        return ws
+    except Exception as e:
+        db.rollback(); logger.warning(f"update_workflow_state failed: {e}")
+    finally:
+        db.close()
+
+
+# ============================================================================
+# WORKFLOW REASONING  (audit trail per workflow — survives restarts)
+# ============================================================================
+
+def save_workflow_reasoning(workflow_id: str, reasoning: dict):
+    """Upsert the full reasoning dict for a workflow.
+
+    Creates the WorkflowState row if it does not yet exist (the streaming
+    /orchestrate/stream path does not call save_workflow_state first).
+    """
+    import json as _json
+    db = get_session()
+    try:
+        ws = db.query(WorkflowState).filter(
+            WorkflowState.workflow_id == workflow_id
+        ).first()
+        if ws is None:
+            ws = WorkflowState(
+                workflow_id  = workflow_id,
+                goal         = reasoning.get("goal", ""),
+                priority     = reasoning.get("priority", "medium"),
+                status       = "executing",
+                reasoning_json = _json.dumps(reasoning),
+            )
+            db.add(ws)
+        else:
+            ws.reasoning_json = _json.dumps(reasoning)
+            ws.updated_at = datetime.utcnow()
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"save_workflow_reasoning failed: {e}")
+    finally:
+        db.close()
+
+
+def get_workflow_reasoning(workflow_id: str):
+    """Return the reasoning dict for a workflow, or None if not found."""
+    import json as _json
+    ws = get_workflow_state(workflow_id)
+    if ws and ws.reasoning_json:
+        try:
+            return _json.loads(ws.reasoning_json)
+        except Exception:
+            return None
+    return None
+
+
+def list_workflow_reasonings(limit: int = 20):
+    """Return summary rows for the most recent workflows that have reasoning data."""
+    import json as _json
+    db = get_session()
+    try:
+        rows = (
+            db.query(WorkflowState)
+            .filter(WorkflowState.reasoning_json.isnot(None))
+            .order_by(WorkflowState.started_at.desc())
+            .limit(limit)
+            .all()
+        )
+        results = []
+        for ws in rows:
+            try:
+                data = _json.loads(ws.reasoning_json)
+                results.append({
+                    "workflow_id": ws.workflow_id,
+                    "goal":        ws.goal,
+                    "started_at":  ws.started_at.isoformat(),
+                    "audits":      len(data.get("auditor_reports", [])),
+                    "steps":       len(data.get("step_reasoning", [])),
+                })
+            except Exception:
+                pass
+        return results
+    finally:
+        db.close()
+
+
+# ============================================================================
+# CRITIC DECISIONS  (autonomous replan decisions — survives restarts)
+# ============================================================================
+
+def save_critic_decision(workflow_id, reasoning, efficiency_gain, confidence_score,
+                          original_plan, revised_plan, accepted=True):
+    import json as _json
+    db = get_session()
+    try:
+        cd = CriticDecision(
+            workflow_id=workflow_id,
+            reasoning=reasoning,
+            efficiency_gain=efficiency_gain,
+            confidence_score=confidence_score,
+            original_plan_json=_json.dumps(original_plan) if original_plan else None,
+            revised_plan_json=_json.dumps(revised_plan) if revised_plan else None,
+            accepted=accepted,
+        )
+        db.add(cd); db.commit()
+        return cd
+    except Exception as e:
+        db.rollback(); logger.warning(f"save_critic_decision failed: {e}")
+    finally:
+        db.close()
+
+
+def get_critic_decisions(workflow_id=None, limit=50):
+    db = get_session()
+    try:
+        q = db.query(CriticDecision)
+        if workflow_id:
+            q = q.filter(CriticDecision.workflow_id == workflow_id)
+        return q.order_by(CriticDecision.replanned_at.desc()).limit(limit).all()
     finally:
         db.close()

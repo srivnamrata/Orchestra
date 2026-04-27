@@ -80,16 +80,32 @@ class GCPPubSubService:
             logger.warning(f"⚠️ Failed to publish to GCP topic {topic}. Missing topic? Error: {e}")
     
     async def subscribe(self, topic: str, callback: Callable, context: Dict = None):
-        """Subscribe to GCP Pub/Sub topic"""
+        """Subscribe to GCP Pub/Sub topic.
+
+        GCP delivers messages on a background thread, not the event loop thread.
+        asyncio.run() would create a *new* loop and raise RuntimeError because
+        uvicorn's loop is already running.  We capture the running loop here
+        (inside the async subscribe method) and use run_coroutine_threadsafe so
+        the callback executes on the correct loop.  ack() is called only after a
+        successful callback; nack() lets Pub/Sub redeliver on failure.
+        """
         subscription_path = self.subscriber.subscription_path(
             self.project_id, f"{topic}-subscription"
         )
-        
+        loop = asyncio.get_event_loop()
+
         def message_callback(message):
-            data = json.loads(message.data.decode('utf-8'))
-            asyncio.run(callback(data, context or {}))
-            message.ack()
-        
+            try:
+                data    = json.loads(message.data.decode("utf-8"))
+                future  = asyncio.run_coroutine_threadsafe(
+                    callback(data, context or {}), loop
+                )
+                future.result(timeout=30)   # propagate exceptions; let Pub/Sub retry on timeout
+                message.ack()
+            except Exception as e:
+                logger.error(f"Pub/Sub callback failed for topic {topic}: {e}")
+                message.nack()
+
         try:
             streaming_pull_future = self.subscriber.subscribe(
                 subscription_path, callback=message_callback

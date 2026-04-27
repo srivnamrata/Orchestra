@@ -28,7 +28,8 @@ class MockLLMService(LLMService):
                 ]
             })
         if "revised plan" in prompt.lower():
-            return json.dumps({"revised_plan": [], "explanation": "Optimized"})
+            return json.dumps({"revised_plan": [], "explanation": "Optimized",
+                               "efficiency_gain": 0.20, "confidence": 0.80})
         if "on track" in prompt.lower():
             return json.dumps({"on_track": True, "reasoning": "Progress aligns", "recommended_action": "Continue"})
         if "more efficient" in prompt.lower():

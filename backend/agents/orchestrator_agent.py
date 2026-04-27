@@ -10,6 +10,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import logging
 from datetime import datetime
+from backend.services.llm_utils import parse_llm_json
 
 logger = logging.getLogger(__name__)
 
@@ -58,44 +59,50 @@ class OrchestratorAgent:
         Step 4: Distribute to sub-agents
         Step 5: Monitor via Critic agent
         """
+        from backend.database import save_workflow_state, update_workflow_state
+
         logger.info(f"🎯 Orchestrator processing request: {request.goal}")
-        
+
         workflow_id = request.request_id
         self.workflows[workflow_id] = {
             "request": request,
             "status": "planning",
             "plan": None,
-            "started_at": datetime.now().isoformat()
+            "started_at": datetime.now().isoformat(),
         }
-        
+        save_workflow_state(workflow_id, request.goal, request.priority, "planning")
+
         try:
             # Step 1: Analyze the request and generate execution plan
             execution_plan = await self._generate_execution_plan(request)
             self.workflows[workflow_id]["plan"] = execution_plan
-            
+
             logger.info(f"✅ Generated execution plan for {workflow_id}")
+            update_workflow_state(workflow_id, status="executing",
+                                  plan_json=json.dumps(execution_plan))
             await self.pubsub.publish(f"workflow-{workflow_id}-status", {
                 "status": "plan_ready",
-                "steps": len(execution_plan)
+                "steps": len(execution_plan),
             })
-            
+
             # Step 2: Build knowledge graph from the plan
             await self._build_knowledge_graph(workflow_id, execution_plan)
-            
-            # Step 3: Start Critic agent monitoring
-            await self.critic_agent.start_monitoring(workflow_id, execution_plan)
-            
+
+            # Step 3: Start Critic agent monitoring — pass the original goal explicitly
+            await self.critic_agent.start_monitoring(workflow_id, execution_plan, goal=request.goal)
+
             # Step 4: Execute the plan
             self.workflows[workflow_id]["status"] = "executing"
             await self._execute_plan(workflow_id, execution_plan)
-            
+
         except Exception as e:
             logger.error(f"Error processing request {workflow_id}: {e}")
             self.workflows[workflow_id]["status"] = "failed"
             self.workflows[workflow_id]["error"] = str(e)
+            update_workflow_state(workflow_id, status="failed", error=str(e))
             await self.pubsub.publish(f"workflow-{workflow_id}-status", {
                 "status": "failed",
-                "error": str(e)
+                "error": str(e),
             })
     
     async def _generate_execution_plan(self, request: WorkflowRequest) -> List[Dict[str, Any]]:
@@ -133,9 +140,9 @@ class OrchestratorAgent:
         }}
         """
         
-        response = await self.llm_service.call(prompt)
-        plan_json = json.loads(response)
-        
+        response  = await self.llm_service.call(prompt)
+        plan_json = parse_llm_json(response)
+
         return plan_json.get("steps", [])
     
     async def _build_knowledge_graph(self, workflow_id: str, plan: List[Dict]):
@@ -239,10 +246,18 @@ class OrchestratorAgent:
         workflow["status"] = "completed"
         workflow["results"] = results
         logger.info(f"✅ Workflow {workflow_id} completed successfully")
-        
+
+        from backend.database import update_workflow_state
+        # results values may not be JSON-serialisable; convert to strings as a safe fallback
+        try:
+            results_json = json.dumps(results)
+        except (TypeError, ValueError):
+            results_json = json.dumps({k: str(v) for k, v in results.items()})
+        update_workflow_state(workflow_id, status="completed", results_json=results_json)
+
         await self.pubsub.publish(f"workflow-{workflow_id}-status", {
             "status": "completed",
-            "results": results
+            "results": results,
         })
     
     async def _execute_step(self, workflow_id: str, step_id: int, 
@@ -267,21 +282,24 @@ class OrchestratorAgent:
             "timestamp": datetime.now().isoformat()
         })
         
+        step_started_at = datetime.now()
         try:
             # Execute step with timeout
             result = await asyncio.wait_for(
                 agent.execute(step, previous_results),
                 timeout=step.get("timeout_seconds", 30)
             )
-            
-            # Publish completion
+
+            duration = round((datetime.now() - step_started_at).total_seconds(), 2)
+
+            # Publish completion with actual wall-clock duration
             await self.pubsub.publish(f"workflow-{workflow_id}-progress", {
-                "workflow_id": workflow_id,
-                "step_id": step_id,
-                "step_name": step.get("name"),
-                "status": "completed",
-                "duration_seconds": 5,  # In production, calculate actual duration
-                "result_summary": str(result)[:100]
+                "workflow_id":      workflow_id,
+                "step_id":          step_id,
+                "step_name":        step.get("name"),
+                "status":           "completed",
+                "duration_seconds": duration,
+                "result_summary":   str(result)[:100],
             })
             
             return result
@@ -291,18 +309,32 @@ class OrchestratorAgent:
             raise Exception(f"Step {step_id} timeout exceeded")
     
     def get_workflow_status(self, workflow_id: str) -> Dict[str, Any]:
-        """Get the current status of a workflow"""
+        """Get workflow status — checks in-memory state first, then falls back to DB."""
         workflow = self.workflows.get(workflow_id)
-        if not workflow:
+        if workflow:
+            return {
+                "workflow_id": workflow_id,
+                "status":      workflow.get("status"),
+                "goal":        workflow.get("request").goal,
+                "started_at":  workflow.get("started_at"),
+                "plan_steps":  len(workflow.get("plan") or []),
+                "critic_report": self.critic_agent.get_workflow_audit_report(workflow_id),
+            }
+
+        # Not in memory — try DB (handles post-restart or cross-instance lookups)
+        from backend.database import get_workflow_state
+        db_state = get_workflow_state(workflow_id)
+        if not db_state:
             return {"error": "Workflow not found"}
-        
+        plan = json.loads(db_state.plan_json) if db_state.plan_json else []
         return {
-            "workflow_id": workflow_id,
-            "status": workflow.get("status"),
-            "goal": workflow.get("request").goal,
-            "started_at": workflow.get("started_at"),
-            "plan_steps": len(workflow.get("plan") or []),
-            "critic_report": self.critic_agent.get_workflow_audit_report(workflow_id)
+            "workflow_id":   workflow_id,
+            "status":        db_state.status,
+            "goal":          db_state.goal,
+            "started_at":    db_state.started_at.isoformat(),
+            "plan_steps":    len(plan),
+            "critic_report": self.critic_agent.get_workflow_audit_report(workflow_id),
+            "source":        "database",
         }
     
     async def handle_critic_replan(self, workflow_id: str, replan_message: Dict):
@@ -318,13 +350,17 @@ class OrchestratorAgent:
         
         if replan_message.get("approved_by_critic"):
             logger.info(f"✅ Accepting Critic's replan suggestion")
-            # Update workflow with new plan
-            workflow["plan"] = replan_message.get("revised_plan")
+            revised_plan = replan_message.get("revised_plan", [])
+            workflow["plan"]   = revised_plan
             workflow["status"] = "replanned"
-            
+
+            from backend.database import update_workflow_state
+            update_workflow_state(workflow_id, status="replanned",
+                                  plan_json=json.dumps(revised_plan))
+
             await self.pubsub.publish(f"workflow-{workflow_id}-replan-accepted", {
-                "reasoning": replan_message.get("reasoning"),
-                "efficiency_gain": replan_message.get("efficiency_gain")
+                "reasoning":      replan_message.get("reasoning"),
+                "efficiency_gain": replan_message.get("efficiency_gain"),
             })
         else:
             logger.warning(f"Replan rejected by Critic")

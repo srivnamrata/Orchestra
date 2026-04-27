@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import logging
 from enum import Enum
+from backend.services.llm_utils import parse_llm_json
 
 logger = logging.getLogger(__name__)
 
@@ -66,18 +67,21 @@ class CriticAgent:
         self.current_workflows: Dict[str, Dict] = {}
         self.decision_history: List[ReplanDecision] = []
         
-    async def start_monitoring(self, workflow_id: str, workflow_plan: List[Dict[str, Any]]):
+    async def start_monitoring(self, workflow_id: str, workflow_plan: List[Dict[str, Any]],
+                               goal: str = ""):
         """
         Start monitoring a workflow for potential issues.
-        Runs continuously in background, listening to Pub/Sub updates.
+        goal is stored explicitly so _detect_goal_drift never has to
+        guess it from plan[0] (steps don't own the workflow goal).
         """
         logger.info(f"🔍 Critic Agent starting monitoring for workflow {workflow_id}")
         self.current_workflows[workflow_id] = {
-            "plan": workflow_plan,
-            "progress": [],
-            "issues": [],
+            "plan":       workflow_plan,
+            "goal":       goal,           # authoritative source of the workflow goal
+            "progress":   [],
+            "issues":     [],
             "start_time": datetime.now().isoformat(),
-            "status": "monitoring"
+            "status":     "monitoring",
         }
         
         # Subscribe to workflow progress events
@@ -247,9 +251,11 @@ class CriticAgent:
         Detect if workflow has drifted from original goal.
         Uses LLM to compare current progress against original objective.
         """
-        progress_text = "\n".join([f"- {p['step_name']}: {p['status']}" 
-                                  for p in workflow["progress"][-5:]])  # Last 5 steps
-        original_goal = workflow["plan"][0].get("goal", "Unknown")
+        progress_text = "\n".join(
+            f"- {p['step_name']}: {p['status']}"
+            for p in workflow["progress"][-5:]
+        )
+        original_goal = workflow.get("goal") or "Unknown"
         
         prompt = f"""
         Original Goal: {original_goal}
@@ -261,9 +267,13 @@ class CriticAgent:
         Respond with JSON: {{"on_track": true/false, "reasoning": "...", "recommended_action": "..."}}
         """
         
-        response = await self.llm_service.call(prompt)
-        analysis = json.loads(response)
-        
+        try:
+            response = await self.llm_service.call(prompt)
+            analysis  = parse_llm_json(response)
+        except Exception as e:
+            logger.warning(f"Goal drift check failed: {e}")
+            return None   # safe fallback: don't flag a problem we can't verify
+
         if not analysis.get("on_track"):
             return WorkflowIssue(
                 issue_type="goal_drift",
@@ -271,204 +281,257 @@ class CriticAgent:
                 description=f"Workflow drifted from goal. {analysis.get('reasoning')}",
                 affected_steps=[],
                 detection_time=datetime.now().isoformat(),
-                evidence={"analysis": analysis}
+                evidence={"analysis": analysis},
             )
-        
+
         return None
     
     async def _detect_inefficiency(self, workflow: Dict) -> Optional[WorkflowIssue]:
-        """
-        Detect if there's a more efficient path to achieve the same goal.
-        """
+        """Detect if a more efficient path exists for the same goal."""
         plan = workflow["plan"]
         goal = plan[0].get("goal", "")
-        
-        # Ask LLM to suggest better approach
         plan_text = json.dumps(plan, indent=2)
-        
+
         prompt = f"""
         Goal: {goal}
-        
+
         Current Plan:
         {plan_text}
-        
-        Suggest a more efficient plan if possible. Respond with JSON:
+
+        Suggest a more efficient plan if one exists. Respond with JSON only:
         {{
-            "has_better_approach": true/false,
-            "efficiency_gain": 0.2,  # 20% faster
+            "has_better_approach": true,
+            "efficiency_gain": 0.2,
             "alternative_plan": [...],
             "reasoning": "..."
         }}
         """
-        
-        response = await self.llm_service.call(prompt)
-        analysis = json.loads(response)
-        
-        if analysis.get("has_better_approach") and analysis.get("efficiency_gain", 0) > 0.15:
+
+        try:
+            response = await self.llm_service.call(prompt)
+            analysis  = parse_llm_json(response)
+        except Exception as e:
+            logger.warning(f"Inefficiency check failed: {e}")
+            return None
+
+        gain = analysis.get("efficiency_gain", 0)
+        if analysis.get("has_better_approach") and gain > 0.15:
             return WorkflowIssue(
                 issue_type="suboptimal_plan",
-                risk_level=RiskLevel.MEDIUM,
-                description=f"More efficient approach exists ({analysis.get('efficiency_gain')*100:.0f}% faster). "
-                          f"{analysis.get('reasoning')}",
+                risk_level=RiskLevel.HIGH,   # HIGH so _attempt_replan is triggered
+                description=f"More efficient approach found ({gain*100:.0f}% faster). {analysis.get('reasoning')}",
                 affected_steps=list(range(len(plan))),
                 detection_time=datetime.now().isoformat(),
                 evidence={
                     "alternative_plan": analysis.get("alternative_plan"),
-                    "efficiency_gain": analysis.get("efficiency_gain")
-                }
+                    "efficiency_gain":  gain,
+                },
             )
-        
+
         return None
     
     async def _attempt_replan(self, workflow_id: str, issue: WorkflowIssue):
-        """
-        When a major issue is detected, attempt to autonomously replan.
-        This is the GAME-CHANGING feature - the agent doesn't wait for human approval.
-        """
+        """Attempt an autonomous replan in response to a detected issue."""
         logger.info(f"🧠 Critic Agent attempting autonomous replan for {workflow_id}")
-        
-        workflow = self.current_workflows[workflow_id]
+
+        workflow      = self.current_workflows[workflow_id]
         original_plan = workflow["plan"]
-        progress = workflow["progress"]
-        
-        # Generate revised plan
-        revised_plan = await self._generate_revised_plan(
-            original_plan=original_plan,
-            issue=issue,
-            progress=progress
-        )
-        
-        if revised_plan is None:
-            logger.warning(f"Could not generate viable revised plan for {workflow_id}")
+        progress      = workflow["progress"]
+
+        # ── Derive revised plan, efficiency gain, and confidence ─────────────
+        if issue.issue_type == "suboptimal_plan":
+            # LLM already provided the alternative plan and gain during detection;
+            # reuse them to avoid a redundant second LLM call.
+            revised_plan    = issue.evidence.get("alternative_plan") or []
+            efficiency_gain = float(issue.evidence.get("efficiency_gain", 0.0))
+            # Confidence is proportional to reported gain: higher gain → higher confidence.
+            confidence      = min(0.95, 0.6 + efficiency_gain * 0.5)
+        else:
+            result = await self._generate_revised_plan(original_plan, issue, progress)
+            if result is None:
+                logger.warning(f"Could not generate revised plan for {workflow_id}")
+                return
+            revised_plan    = result["plan"]
+            efficiency_gain = result["efficiency_gain"]
+            confidence      = result["confidence"]
+
+        if not revised_plan:
+            logger.warning(f"Revised plan is empty for {workflow_id}, skipping replan")
             return
-        
-        # Calculate efficiency improvement
-        efficiency_gain = await self._calculate_efficiency_gain(original_plan, revised_plan)
-        
-        # Make decision to replan
+
+        reasoning = (
+            f"Issue detected: {issue.description}. "
+            f"Replan estimated to improve efficiency by {efficiency_gain*100:.1f}% "
+            f"(confidence {confidence*100:.0f}%)."
+        )
         decision = ReplanDecision(
             original_plan=original_plan,
             revised_plan=revised_plan,
-            reasoning=f"Issue detected: {issue.description}. "
-                     f"Replan improves efficiency by {efficiency_gain*100:.1f}%",
+            reasoning=reasoning,
             efficiency_gain=efficiency_gain,
             risk_mitigation=[
                 "Pause current step",
                 "Update task dependencies",
                 "Resume with new plan",
-                "Monitor for conflicts"
+                "Monitor for conflicts",
             ],
-            confidence_score=0.85,  # In production, compute actual confidence
-            replanned_at=datetime.now().isoformat()
+            confidence_score=confidence,
+            replanned_at=datetime.now().isoformat(),
         )
-        
-        # 🎯 AUTONOMOUSLY APPLY THE REPLAN
-        if efficiency_gain > 0.15 and decision.confidence_score > 0.75:  # >15% improvement
-            logger.info(f"✅ Accepting replan for {workflow_id} (↑{efficiency_gain*100:.1f}% efficiency)")
-            
-            # Notify orchestrator of the replan
+
+        # ── Apply only when both thresholds are met ───────────────────────────
+        if efficiency_gain > 0.15 and confidence > 0.75:
+            logger.info(f"✅ Accepting replan for {workflow_id} "
+                        f"(↑{efficiency_gain*100:.1f}% efficiency, {confidence*100:.0f}% confidence)")
+
             await self.pubsub.publish(
                 topic=f"workflow-{workflow_id}-replan",
                 message={
-                    "action": "replan",
-                    "original_plan": original_plan,
-                    "revised_plan": revised_plan,
-                    "reasoning": decision.reasoning,
-                    "efficiency_gain": efficiency_gain,
-                    "approved_by_critic": True
-                }
+                    "action":            "replan",
+                    "original_plan":     original_plan,
+                    "revised_plan":      revised_plan,
+                    "reasoning":         reasoning,
+                    "efficiency_gain":   efficiency_gain,
+                    "approved_by_critic": True,
+                },
             )
-            
-            # Record decision
+
             self.decision_history.append(decision)
             workflow["status"] = "replanned"
+
+            from backend.database import save_critic_decision
+            save_critic_decision(
+                workflow_id=workflow_id,
+                reasoning=reasoning,
+                efficiency_gain=efficiency_gain,
+                confidence_score=confidence,
+                original_plan=original_plan,
+                revised_plan=revised_plan,
+                accepted=True,
+            )
         else:
-            logger.info(f"Rejected replan for {workflow_id} (insufficient improvement or confidence)")
+            logger.info(f"Rejected replan for {workflow_id} "
+                        f"(gain={efficiency_gain*100:.1f}%, confidence={confidence*100:.0f}%)")
             await self.pubsub.publish(
                 topic=f"workflow-{workflow_id}-audit",
                 message={
                     "action": "issue_detected",
                     "issue": {
-                        "type": issue.issue_type,
+                        "type":        issue.issue_type,
                         "description": issue.description,
-                        "risk_level": issue.risk_level.value
+                        "risk_level":  issue.risk_level.value,
                     },
-                    "recommendation": "Human review recommended"
-                }
+                    "recommendation": "Human review recommended",
+                },
             )
-    
-    async def _generate_revised_plan(self, original_plan: List[Dict], 
-                                    issue: WorkflowIssue,
-                                    progress: List[Dict]) -> Optional[List[Dict]]:
+
+            from backend.database import save_critic_decision
+            save_critic_decision(
+                workflow_id=workflow_id,
+                reasoning=reasoning,
+                efficiency_gain=efficiency_gain,
+                confidence_score=confidence,
+                original_plan=original_plan,
+                revised_plan=revised_plan,
+                accepted=False,
+            )
+
+    async def _generate_revised_plan(
+        self,
+        original_plan: List[Dict],
+        issue: WorkflowIssue,
+        progress: List[Dict],
+    ) -> Optional[Dict]:
         """
-        Use LLM to generate a revised plan that addresses the detected issue.
+        Ask the LLM for a revised plan that fixes the issue.
+        Returns a dict with keys: plan (list), efficiency_gain (float), confidence (float).
+        Returns None when the LLM call fails.
         """
         original_text = json.dumps(original_plan, indent=2)
         progress_text = json.dumps(progress[-3:], indent=2) if progress else "No progress yet"
-        
+
         prompt = f"""
         Original Execution Plan:
         {original_text}
-        
-        Detected Issue: {issue.issue_type} - {issue.description}
-        
+
+        Detected Issue: {issue.issue_type} — {issue.description}
+
         Recent Progress:
         {progress_text}
-        
-        Generate a revised plan that:
-        1. Addresses the issue
-        2. Maintains the original goal
-        3. Is more efficient if possible
-        4. Leverages completed steps from progress
-        
-        Respond with JSON: {{"revised_plan": [...], "explanation": "..."}}
+
+        Generate a revised plan that addresses the issue while preserving the original goal.
+        Respond with JSON only, no markdown:
+        {{
+            "revised_plan": [...],
+            "explanation": "...",
+            "efficiency_gain": 0.0,
+            "confidence": 0.0
+        }}
+
+        efficiency_gain: fraction 0.0–1.0 (e.g. 0.25 means 25% improvement vs original).
+        confidence: fraction 0.0–1.0 reflecting how certain you are the revision helps.
         """
-        
+
         try:
             response = await self.llm_service.call(prompt)
-            analysis = json.loads(response)
-            return analysis.get("revised_plan")
+            data      = parse_llm_json(response)
+            return {
+                "plan":            data.get("revised_plan", []),
+                "efficiency_gain": float(data.get("efficiency_gain", 0.0)),
+                "confidence":      float(data.get("confidence", 0.0)),
+            }
         except Exception as e:
             logger.error(f"Error generating revised plan: {e}")
             return None
     
-    async def _calculate_efficiency_gain(self, original_plan: List[Dict], 
-                                        revised_plan: List[Dict]) -> float:
-        """
-        Calculate estimated efficiency improvement (0.0-1.0).
-        In production, this would use ML models trained on historical data.
-        """
-        # Simplified calculation: steps reduced / original steps
-        original_steps = len(original_plan)
-        revised_steps = len(revised_plan)
-        
-        if original_steps == 0:
-            return 0.0
-        
-        return max(0.0, (original_steps - revised_steps) / original_steps)
-    
     def get_decision_history(self) -> List[ReplanDecision]:
-        """Return all autonomous replan decisions made"""
-        return self.decision_history
-    
+        """Return in-memory decisions, falling back to DB when the list is empty (post-restart)."""
+        if self.decision_history:
+            return self.decision_history
+
+        try:
+            from backend.database import get_critic_decisions
+            rows = get_critic_decisions(limit=100)
+            return [
+                ReplanDecision(
+                    original_plan=[],   # raw JSON not re-parsed to avoid overhead
+                    revised_plan=[],
+                    reasoning=r.reasoning,
+                    efficiency_gain=r.efficiency_gain,
+                    risk_mitigation=[],
+                    confidence_score=r.confidence_score,
+                    replanned_at=r.replanned_at.isoformat(),
+                )
+                for r in rows
+            ]
+        except Exception as e:
+            logger.warning(f"Could not load decision history from DB: {e}")
+            return []
+
     def get_workflow_audit_report(self, workflow_id: str) -> Dict[str, Any]:
-        """Generate audit report for a workflow"""
+        """Audit report for a workflow — includes persisted decisions from the DB."""
         workflow = self.current_workflows.get(workflow_id, {})
-        
+
+        try:
+            from backend.database import get_critic_decisions
+            db_decisions = get_critic_decisions(workflow_id=workflow_id)
+            replans_count = len(db_decisions)
+        except Exception:
+            replans_count = len([d for d in self.decision_history if d])
+
         return {
-            "workflow_id": workflow_id,
-            "status": workflow.get("status"),
-            "start_time": workflow.get("start_time"),
+            "workflow_id":           workflow_id,
+            "status":                workflow.get("status"),
+            "start_time":            workflow.get("start_time"),
             "total_issues_detected": len(workflow.get("issues", [])),
             "issues": [
                 {
-                    "type": issue.issue_type,
-                    "risk_level": issue.risk_level.value,
+                    "type":        issue.issue_type,
+                    "risk_level":  issue.risk_level.value,
                     "description": issue.description,
-                    "detected_at": issue.detection_time
+                    "detected_at": issue.detection_time,
                 }
                 for issue in workflow.get("issues", [])
             ],
-            "replans_executed": len([d for d in self.decision_history if d]),
-            "current_efficiency_vs_original": "TODO: Calculate based on actual execution"
+            "replans_executed": replans_count,
         }
