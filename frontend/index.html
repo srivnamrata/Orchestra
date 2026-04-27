@@ -452,7 +452,7 @@ html.dark .qchip {
 ::-webkit-scrollbar-thumb:hover { background: var(--md-dim); background-clip: content-box; }
 
 /* Material symbol helper */
-.ms { font-family: 'Material Symbols Rounded'; font-size: 18px; line-height: 1; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20; vertical-align: middle; }
+.ms { font-family: 'Material Symbols Rounded'; font-size: 18px; line-height: 1; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20; vertical-align: middle; font-feature-settings: 'liga'; -webkit-font-feature-settings: 'liga'; speak: never; }
 .ms.filled { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20; }
 .ms.sm { font-size: 16px; }
 .ms.lg { font-size: 22px; }
@@ -2065,10 +2065,10 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
     <div class="nav-item" data-view="outputs" onclick="window.switchView('outputs')"><span class="ms">folder_open</span> Outputs</div>
     
     <div class="nav-label">Specialists</div>
-    <div class="nav-item" data-view="news" onclick="window.switchView('dashboard'); window.fetchIntel('news')"><span class="ms">newspaper</span> News Agent</div>
-    <div class="nav-item" data-view="research" onclick="window.switchView('dashboard'); window.fetchIntel('research')"><span class="ms">microscope</span> Research Agent</div>
-    <div class="nav-item" data-view="outputs" onclick="window.switchView('outputs')"><span class="ms">terminal</span> Coder Agent</div>
-    <div class="nav-item" data-view="outputs" onclick="window.switchView('outputs')"><span class="ms">edit_note</span> Writer Agent</div>
+    <div class="nav-item" data-view="news" onclick="window.switchView('dashboard'); if(window.fetchIntel) window.fetchIntel('news'); else { document.querySelectorAll('.intel-pane').forEach(p=>p.classList.remove('active')); var p=document.getElementById('pane-news'); if(p)p.classList.add('active'); }"><span class="ms">newspaper</span> News</div>
+    <div class="nav-item" data-view="research" onclick="window.switchView('dashboard'); if(window.fetchIntel) window.fetchIntel('research'); else { document.querySelectorAll('.intel-pane').forEach(p=>p.classList.remove('active')); var p=document.getElementById('pane-research'); if(p)p.classList.add('active'); }"><span class="ms">science</span> Research</div>
+    <div class="nav-item" data-view="outputs" onclick="window.switchView('outputs')"><span class="ms">terminal</span> Coder</div>
+    <div class="nav-item" data-view="outputs" onclick="window.switchView('outputs')"><span class="ms">edit_note</span> Writer</div>
 
     <div class="nav-label">System Monitoring</div>
     <div class="nav-item" data-view="trace" onclick="window.switchView('trace')" style="cursor:pointer"><span class="ms">psychology</span> Agent Reasoning</div>
