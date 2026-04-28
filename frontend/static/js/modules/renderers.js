@@ -117,16 +117,24 @@ export function renderResearch(papers) {
 
 
 export function renderTasks(tasks) {
-    const html = (tasks||[]).map(t => {
-        const done = t.status === 'done';
+    const prioColor = { critical:'var(--g-red)', high:'var(--g-amber)', medium:'var(--g-blue)', low:'var(--md-dim)' };
+    const prioBg    = { critical:'var(--g-red-light)', high:'var(--g-amber-light)', medium:'var(--g-blue-light)', low:'var(--md-surface-2)' };
+    const html = (tasks||[]).slice(0,8).map(t => {
+        const done = t.status === 'completed' || t.status === 'done';
+        const p    = (t.priority||'medium').toLowerCase();
+        const due  = t.due_date ? new Date(t.due_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
         return `<div class="task-intel-item">
-            <div class="ti-check ${done?'done':''}">${done?'✓':''}</div>
-            <div><div class="ti-title ${done?'done-text':''}">${t.title}</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority">${t.priority||'med'}</span></div></div>
+            <div class="ti-check ${done?'done':''}" style="cursor:default">${done?'✓':''}</div>
+            <div><div class="ti-title ${done?'done-text':''}">${t.title}</div>
+            <div style="display:flex;gap:6px;margin-top:4px">
+                <span class="ti-priority" style="background:${prioBg[p]||'var(--md-surface-2)'};color:${prioColor[p]||'var(--md-dim)'}">${p}</span>
+                ${due?`<span class="ti-due">${due}</span>`:''}
+            </div></div>
         </div>`;
     }).join('');
     const pane = document.getElementById('pane-tasks');
     const all  = document.getElementById('all-tasks-list');
-    if (pane) pane.querySelector('.task-intel-grid').innerHTML = html;
+    if (pane) { const g = pane.querySelector('.task-intel-grid'); if (g) g.innerHTML = html; }
     if (all)  all.innerHTML = html;
 }
 
@@ -135,9 +143,14 @@ export function renderSchedule(events) {
     if (!pane) return;
     const grid = pane.querySelector('.schedule-grid');
     if (!grid) return;
-    grid.innerHTML = (events||[]).map(ev => `
+    grid.innerHTML = (events||[]).slice(0,6).map(ev => {
+        const time = ev.start_time ? ev.start_time.split('T')[1]?.slice(0,5) : '--:--';
+        const date = ev.start_time ? new Date(ev.start_time).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
+        return `
         <div class="sched-item">
-            <div class="sched-time">${ev.start_time?ev.start_time.split('T')[1].slice(0,5):'--:--'}</div>
-            <div><div class="sched-name">${ev.summary}</div><div class="sched-detail">${ev.location||'Remote'}</div></div>
-        </div>`).join('');
+            <div class="sched-time">${time}<div style="font-size:9px;color:var(--md-dim)">${date}</div></div>
+            <div><div class="sched-name">${ev.title||ev.summary||'Untitled'}</div>
+            <div class="sched-detail">${ev.location||'No location'}</div></div>
+        </div>`;
+    }).join('');
 }
