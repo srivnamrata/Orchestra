@@ -1,8 +1,11 @@
-export function showCompletionToast(goalText) {
+export function showCompletionToast(taskTitle) {
     const toast = document.getElementById('completionToast');
     const el    = document.getElementById('ct-goal-text');
-    if (el)    el.textContent = goalText;
-    if (toast) toast.classList.add('show');
+    if (el)    el.textContent = taskTitle;
+    if (!toast) return;
+    toast.classList.add('show');
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
 export function switchView(viewId) {

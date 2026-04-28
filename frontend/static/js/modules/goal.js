@@ -1,6 +1,5 @@
 import { apiUrl, apiFetch } from './api.js';
 import { activityFeed } from './feed.js';
-import { showCompletionToast } from './navigation.js';
 import { renderNews, renderResearch } from './renderers.js';
 
 let _nlActiveStream = null;
@@ -81,8 +80,27 @@ export async function submitGoal() {
                             });
                         }
                     } else if (event === 'done') {
-                        activityFeed.log('✅ Workflow execution completed.', 'success', 'SYSTEM');
-                        showCompletionToast(goal);
+                        const steps    = payload.steps            || 0;
+                        const tasks    = payload.tasks_created    || 0;
+                        const events   = payload.events_scheduled || 0;
+                        const parts    = [];
+                        if (steps)  parts.push(`${steps} step${steps  !== 1 ? 's' : ''}`);
+                        if (tasks)  parts.push(`${tasks} task${tasks  !== 1 ? 's' : ''} created`);
+                        if (events) parts.push(`${events} event${events !== 1 ? 's' : ''} scheduled`);
+                        const summary  = parts.length ? parts.join(' · ') : 'No output generated';
+                        activityFeed.log(
+                            `<strong>Workflow complete</strong> — ${summary}`,
+                            'success', 'SYSTEM'
+                        );
+                        if (wfList) wfList.innerHTML = `
+                            <div class="run-card" style="margin-bottom:12px;border-left:3px solid var(--g-green-mid)">
+                                <div><div class="run-title">${goal}</div>
+                                <div class="run-meta">
+                                    <span class="chip" style="background:var(--g-green-light);color:var(--g-green)">✓ Done</span>
+                                    <span class="chip">Orchestrator</span>
+                                    ${parts.map(p => `<span class="chip">${p}</span>`).join('')}
+                                </div></div>
+                            </div>`;
                     }
                 } catch (e) { console.warn('SSE Parse Error:', e); }
             }
