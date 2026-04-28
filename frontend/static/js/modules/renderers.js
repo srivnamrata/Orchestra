@@ -115,50 +115,6 @@ export function renderResearch(papers) {
     }).join('');
 }
 
-export function renderGitHub(data) {
-    const pane = document.getElementById('pane-github');
-    if (!pane) return;
-    const grid = pane.querySelector('.news-grid');
-    if (!grid) return;
-    grid.innerHTML = (data.pull_requests||[]).map(pr => `
-        <div class="news-card nc-github" style="border-left:4px solid ${pr.status==='APPROVED'?'var(--g-green)':'var(--g-amber)'}">
-            <div class="news-source-row"><div class="news-favicon" style="background:#24292e;color:white">G</div><span class="news-source-name">${pr.repo}</span></div>
-            <div class="news-title">PR #${pr.id}: ${pr.title}</div>
-            <div class="news-meta" style="color:${pr.status==='APPROVED'?'var(--g-green)':'var(--g-amber)'}">${pr.status==='APPROVED'?'✓ Checks passed · Approved':'⚠️ Blocked by review'}</div>
-            <div class="news-actions"><button class="na-btn" onclick="activityFeed.log('Reviewing PR #${pr.id}...','status','GITHUB')">📖 Review</button></div>
-        </div>`).join('');
-}
-
-export function renderSlack(data) {
-    const pane = document.getElementById('pane-slack');
-    if (!pane) return;
-    const grid = pane.querySelector('.task-intel-grid');
-    if (!grid) return;
-    grid.innerHTML = (data.summaries||[]).map(s => `
-        <div class="task-intel-item">
-            <div class="ti-check" style="background:var(--g-violet);color:white">#</div>
-            <div><div class="ti-title">${s.text}</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-violet-light);color:var(--g-violet)">${s.type}</span><span class="ti-due">${s.ts}</span></div></div>
-        </div>`).join('');
-}
-
-export function renderEmail(data) {
-    const pane = document.getElementById('pane-email');
-    if (!pane) return;
-    const grid = pane.querySelector('.task-intel-grid');
-    if (!grid) return;
-    grid.innerHTML = (data.urgent||[]).map(e => `
-        <div class="task-intel-item">
-            <div class="ti-check" style="background:${e.priority==='high'?'var(--g-red)':'var(--g-blue)'};color:white">M</div>
-            <div>
-                <div class="ti-title">${e.subject}</div>
-                <div style="font-size:11px;color:var(--md-dim);margin:4px 0">${e.summary}</div>
-                <div style="display:flex;gap:6px">
-                    <span class="ti-priority" style="background:${e.priority==='high'?'var(--g-red-light)':'var(--g-blue-light)'};color:${e.priority==='high'?'var(--g-red)':'var(--g-blue)'}">${e.priority}</span>
-                    <span class="ti-due">${e.from}</span>
-                </div>
-            </div>
-        </div>`).join('');
-}
 
 export function renderTasks(tasks) {
     const html = (tasks||[]).map(t => {

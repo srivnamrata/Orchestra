@@ -2077,9 +2077,9 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
     <div class="nav-item" data-view="vibe-checks" onclick="window.switchView('vibe-checks')"><span class="ms">shield</span> Safety Audit</div>
     
     <div class="nav-label">Integrations</div>
-    <div class="nav-item" data-view="github" onclick="window.switchView('dashboard'); window.fetchIntel('github')"><span class="ms">code</span> GitHub <span class="nav-badge nb-blue">stub</span></div>
-    <div class="nav-item" data-view="slack" onclick="window.switchView('dashboard'); window.fetchIntel('slack')"><span class="ms">forum</span> Slack <span class="nav-badge nb-blue">stub</span></div>
-    <div class="nav-item" data-view="email" onclick="window.switchView('dashboard'); window.fetchIntel('email')"><span class="ms">mail</span> Email <span class="nav-badge nb-blue">stub</span></div>
+    <div class="nav-item" onclick="window.open('https://github.com','_blank')"><span class="ms">code</span> GitHub <span class="nav-badge nb-gray">↗</span></div>
+    <div class="nav-item" onclick="window.open('https://app.slack.com','_blank')"><span class="ms">forum</span> Slack <span class="nav-badge nb-gray">↗</span></div>
+    <div class="nav-item" onclick="window.open('https://mail.google.com','_blank')"><span class="ms">mail</span> Gmail <span class="nav-badge nb-gray">↗</span></div>
     <div class="nav-item" data-view="discovery" onclick="window.switchView('discovery')"><span class="ms">dynamic_form</span> Discovery Lab <span class="nav-badge nb-violet">MCP</span></div>
     <div class="nav-item" data-view="library" onclick="window.switchView('library')"><span class="ms">auto_stories</span> Veda <span class="nav-badge nb-violet">Library</span></div>
     <div class="nav-item" data-view="guru" onclick="window.switchView('guru')"><span class="ms">self_improvement</span> Param Mitra <span class="nav-badge nb-amber">GURU</span></div>
@@ -2419,17 +2419,17 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
               <div class="bn-item bn-github" id="bn1">
                 <div class="bn-item-head"><div class="bn-source-tag bn-tag-github">🐙 GITHUB</div><button class="bn-dismiss" onclick="dismissBn('bn1')"><span class="ms sm">close</span></button></div>
                 <div><div class="bn-item-title">PR #42 — API rate limiter</div><div class="bn-item-desc">2 failing checks: <span class="bn-hl red">unit-tests</span>, <span class="bn-hl red">lint</span></div></div>
-                <button class="bn-action" onclick="reviewBn(this,'github')">Review &amp; unblock →</button>
+                <button class="bn-action" onclick="window.open('https://github.com','_blank')">Open GitHub →</button>
               </div>
               <div class="bn-item bn-slack" id="bn2">
                 <div class="bn-item-head"><div class="bn-source-tag bn-tag-slack">💬 SLACK</div><button class="bn-dismiss" onclick="dismissBn('bn2')"><span class="ms sm">close</span></button></div>
                 <div><div class="bn-item-title">@you in #backend</div><div class="bn-item-desc">Can you unblock the <span class="bn-hl amber">deploy pipeline</span>?</div></div>
-                <button class="bn-action" onclick="reviewBn(this,'slack')">Review &amp; unblock →</button>
+                <button class="bn-action" onclick="window.open('https://app.slack.com','_blank')">Open Slack →</button>
               </div>
               <div class="bn-item bn-email" id="bn3">
                 <div class="bn-item-head"><div class="bn-source-tag bn-tag-email">📧 EMAIL</div><button class="bn-dismiss" onclick="dismissBn('bn3')"><span class="ms sm">close</span></button></div>
                 <div><div class="bn-item-title">Re: Product launch sign-off</div><div class="bn-item-desc">Awaiting approval — <span class="bn-hl red">2 days overdue</span></div></div>
-                <button class="bn-action" onclick="reviewBn(this,'email')">Review &amp; reply →</button>
+                <button class="bn-action" onclick="window.open('https://mail.google.com','_blank')">Open Gmail →</button>
               </div>
             </div>
           </div>
@@ -2448,9 +2448,9 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
             <button class="intel-tab" onclick="fetchIntel('research',this)">🔬 Research <span class="intel-tab-count">4</span></button>
             <button class="intel-tab" onclick="fetchIntel('tasks',this)">✅ Tasks <span class="intel-tab-count">6</span></button>
             <button class="intel-tab" onclick="fetchIntel('schedule',this)">📅 Schedule <span class="intel-tab-count">4</span></button>
-            <button class="intel-tab" onclick="fetchIntel('github',this)">🐙 GitHub <span class="intel-tab-count">2</span></button>
-            <button class="intel-tab" onclick="fetchIntel('slack',this)">💬 Slack <span class="intel-tab-count">2</span></button>
-            <button class="intel-tab" onclick="fetchIntel('email',this)">📧 Email <span class="intel-tab-count">1</span></button>
+            <button class="intel-tab" onclick="window.open('https://github.com','_blank')">🐙 GitHub <span class="intel-tab-count">↗</span></button>
+            <button class="intel-tab" onclick="window.open('https://app.slack.com','_blank')">💬 Slack <span class="intel-tab-count">↗</span></button>
+            <button class="intel-tab" onclick="window.open('https://mail.google.com','_blank')">📧 Gmail <span class="intel-tab-count">↗</span></button>
           </div>
         </div>
         <div class="intel-head-right">
@@ -2504,41 +2504,39 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
 
         <div class="intel-pane" id="pane-github">
           <div class="intel-source-label">GitHub · Repository Activity</div>
-          <div class="news-grid">
-            <div class="news-card nc-github" style="border-left:4px solid var(--md-on-surface)">
-              <div class="news-source-row"><div class="news-favicon" style="background:#24292e;color:white">G</div><span class="news-source-name">orchestra-core</span></div>
-              <div class="news-title">PR #42: Integration with Vertex AI Gemini 1.5</div>
-              <div class="news-meta" style="color:var(--g-green)">✓ Checks passed · 2 approvals</div>
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;gap:14px;text-align:center">
+            <div style="width:48px;height:48px;background:#24292e;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;color:white">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.6.11.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
             </div>
-            <div class="news-card nc-github" style="border-left:4px solid var(--md-on-surface)">
-              <div class="news-source-row"><div class="news-favicon" style="background:#24292e;color:white">G</div><span class="news-source-name">orchestra-ui</span></div>
-              <div class="news-title">Issue #108: Mobile responsive dashboard navigation</div>
-              <div class="news-meta" style="color:var(--g-amber)">⚠️ Blocked by design review</div>
-            </div>
+            <div style="font-size:14px;font-weight:700;color:var(--md-on-surface)">Open GitHub</div>
+            <div style="font-size:12px;color:var(--md-dim);max-width:200px;line-height:1.5">View your pull requests, issues, and repository activity.</div>
+            <button class="goal-run" style="margin-top:4px" onclick="window.open('https://github.com','_blank')">
+              <span class="ms sm">open_in_new</span> Go to GitHub
+            </button>
           </div>
         </div>
 
         <div class="intel-pane" id="pane-slack">
-          <div class="intel-source-label">Slack · #engineering-hq</div>
-          <div class="task-intel-grid">
-            <div class="task-intel-item">
-              <div class="ti-check" style="background:var(--g-violet); color:white">#</div>
-              <div><div class="ti-title">Discussed API rate limits for the new crawler</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-violet-light);color:var(--g-violet)">summarized</span></div></div>
-            </div>
-            <div class="task-intel-item">
-              <div class="ti-check" style="background:var(--g-violet); color:white">#</div>
-              <div><div class="ti-title">Confirmed deployment window for v1.2.0</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-violet-light);color:var(--g-violet)">decision</span></div></div>
-            </div>
+          <div class="intel-source-label">Slack · Workspace</div>
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;gap:14px;text-align:center">
+            <div style="width:48px;height:48px;background:#4a154b;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px">💬</div>
+            <div style="font-size:14px;font-weight:700;color:var(--md-on-surface)">Open Slack</div>
+            <div style="font-size:12px;color:var(--md-dim);max-width:200px;line-height:1.5">Jump into your channels and direct messages.</div>
+            <button class="goal-run" style="margin-top:4px;background:linear-gradient(135deg,#4a154b,#7c3aed)" onclick="window.open('https://app.slack.com','_blank')">
+              <span class="ms sm">open_in_new</span> Go to Slack
+            </button>
           </div>
         </div>
 
         <div class="intel-pane" id="pane-email">
-          <div class="intel-source-label">Gmail · Urgent Summaries</div>
-          <div class="task-intel-grid">
-            <div class="task-intel-item">
-              <div class="ti-check" style="background:var(--g-red); color:white">M</div>
-              <div><div class="ti-title">Client feedback regarding the Q1 report latency</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-red-light);color:var(--g-red)">high priority</span></div></div>
-            </div>
+          <div class="intel-source-label">Gmail · Inbox</div>
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;gap:14px;text-align:center">
+            <div style="width:48px;height:48px;background:var(--g-red);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px">📧</div>
+            <div style="font-size:14px;font-weight:700;color:var(--md-on-surface)">Open Gmail</div>
+            <div style="font-size:12px;color:var(--md-dim);max-width:200px;line-height:1.5">Check your inbox and respond to urgent messages.</div>
+            <button class="goal-run" style="margin-top:4px;background:linear-gradient(135deg,#ea4335,#c5221f)" onclick="window.open('https://mail.google.com','_blank')">
+              <span class="ms sm">open_in_new</span> Go to Gmail
+            </button>
           </div>
         </div>
 

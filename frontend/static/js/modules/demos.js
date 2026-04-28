@@ -1,6 +1,6 @@
 import { apiUrl, apiFetch } from './api.js';
 import { activityFeed } from './feed.js';
-import { renderVibeCheck, renderDebate, renderCriticAnalysis, renderNews, renderResearch, renderGitHub, renderSlack, renderEmail, renderTasks, renderSchedule } from './renderers.js';
+import { renderVibeCheck, renderDebate, renderCriticAnalysis, renderNews, renderResearch, renderTasks, renderSchedule } from './renderers.js';
 
 export function switchIntel(type, btn) {
     document.querySelectorAll('.intel-tab').forEach(t => t.classList.remove('active'));
@@ -24,9 +24,6 @@ export async function runDemo(type) {
         research: { name: 'RESEARCH', endpoint: '/demonstrate-research-agent' },
         tasks:    { name: 'TASKS',    endpoint: '/api/tasks' },
         schedule: { name: 'SCHEDULE', endpoint: '/api/events' },
-        github:   { name: 'GITHUB',   endpoint: '/api/github/activity' },
-        slack:    { name: 'SLACK',    endpoint: '/api/slack/summary' },
-        email:    { name: 'EMAIL',    endpoint: '/api/email/urgent' },
     };
     const cfg = configs[type];
     if (!cfg) return;
@@ -51,9 +48,6 @@ export async function runDemo(type) {
         else if (type === 'research') renderResearch(data.papers || data.data || []);
         else if (type === 'tasks')    renderTasks(data.tasks || []);
         else if (type === 'schedule') renderSchedule(data.events || []);
-        else if (type === 'github')   renderGitHub(data);
-        else if (type === 'slack')    renderSlack(data);
-        else if (type === 'email')    renderEmail(data);
         else if (type === 'vibe')     renderVibeCheck(data);
         else if (type === 'debate')   renderDebate(data);
         else if (type === 'critic')   renderCriticAnalysis(data);
@@ -72,6 +66,7 @@ export function fetchIntel(type, btn) {
         const label = document.getElementById('news-source-label');
         if (label) label.textContent = 'Fetching latest AI & ML news…';
         runDemo('news'); runDemo('research'); runDemo('tasks'); runDemo('schedule');
+        // github/slack/email open externally — no fetch needed
         return;
     }
     switchIntel(type, btn);
