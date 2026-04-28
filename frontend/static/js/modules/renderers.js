@@ -140,11 +140,13 @@ export function renderStatusOverview(data) {
     const prioBg    = { critical:'var(--g-red-light)', high:'var(--g-amber-light)', medium:'var(--g-blue-light)', low:'var(--md-surface-2)' };
 
     const taskRow = (task) => `
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--md-surface-2)">
-            <span style="width:6px;height:6px;border-radius:50%;background:${prioColor[task.priority]||'var(--md-dim)'};flex-shrink:0"></span>
-            <span style="flex:1;font-size:12px;color:var(--md-on-surface)">${task.title}</span>
-            ${task.due_date ? `<span style="font-size:10px;color:var(--md-dim);font-family:var(--font-mono)">${task.due_date}</span>` : ''}
-            <span style="font-size:10px;padding:1px 6px;border-radius:100px;background:${prioBg[task.priority]||'var(--md-surface-2)'};color:${prioColor[task.priority]||'var(--md-dim)'}">${task.priority}</span>
+        <div style="display:flex;flex-direction:column;padding:6px 0;border-bottom:1px solid var(--md-surface-2);gap:3px">
+            <div style="display:flex;align-items:center;gap:8px">
+                <span style="width:6px;height:6px;border-radius:50%;background:${prioColor[task.priority]||'var(--md-dim)'};flex-shrink:0"></span>
+                <span style="flex:1;font-size:12px;color:var(--md-on-surface)">${task.title}</span>
+                <span style="font-size:10px;padding:1px 6px;border-radius:100px;background:${prioBg[task.priority]||'var(--md-surface-2)'};color:${prioColor[task.priority]||'var(--md-dim)'}">${task.priority}</span>
+            </div>
+            ${_agentBadge(task) ? `<div style="padding-left:14px">${_agentBadge(task)}</div>` : ''}
         </div>`;
 
     const eventRow = (ev) => `
@@ -335,19 +337,40 @@ export function renderResearch(papers) {
 }
 
 
+function _agentBadge(t) {
+    if (t.status !== 'completed' && t.status !== 'done') return '';
+    const src = (t.source || '').toLowerCase();
+    const p   = (t.priority || '').toLowerCase();
+    if (src === 'auditor') {
+        return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;
+                letter-spacing:.3px;padding:1px 6px;border-radius:100px;
+                background:rgba(52,168,83,0.12);color:var(--g-green);border:1px solid rgba(52,168,83,0.25)">
+                <span class="ms" style="font-size:10px">verified</span> Verified by Auditor</span>`;
+    }
+    if (src === 'orchestrator' || p === 'critical' || p === 'high') {
+        return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;
+                letter-spacing:.3px;padding:1px 6px;border-radius:100px;
+                background:rgba(124,77,255,0.10);color:var(--g-violet);border:1px solid rgba(124,77,255,0.2)">
+                <span class="ms" style="font-size:10px">manage_search</span> Optimized by Critic</span>`;
+    }
+    return '';
+}
+
 export function renderTasks(tasks) {
     const prioColor = { critical:'var(--g-red)', high:'var(--g-amber)', medium:'var(--g-blue)', low:'var(--md-dim)' };
     const prioBg    = { critical:'var(--g-red-light)', high:'var(--g-amber-light)', medium:'var(--g-blue-light)', low:'var(--md-surface-2)' };
     const html = (tasks||[]).slice(0,8).map(t => {
-        const done = t.status === 'completed' || t.status === 'done';
-        const p    = (t.priority||'medium').toLowerCase();
-        const due  = t.due_date ? new Date(t.due_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
+        const done  = t.status === 'completed' || t.status === 'done';
+        const p     = (t.priority||'medium').toLowerCase();
+        const due   = t.due_date ? new Date(t.due_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
+        const badge = _agentBadge(t);
         return `<div class="task-intel-item">
             <div class="ti-check ${done?'done':''}" style="cursor:default">${done?'✓':''}</div>
             <div><div class="ti-title ${done?'done-text':''}">${t.title}</div>
-            <div style="display:flex;gap:6px;margin-top:4px">
+            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center">
                 <span class="ti-priority" style="background:${prioBg[p]||'var(--md-surface-2)'};color:${prioColor[p]||'var(--md-dim)'}">${p}</span>
                 ${due?`<span class="ti-due">${due}</span>`:''}
+                ${badge}
             </div></div>
         </div>`;
     }).join('');
