@@ -65,10 +65,21 @@ def seed():
         uid = user.id
 
         if "--reset" in sys.argv:
-            for model in [CriticDecision, WorkflowHistory, WorkflowState,
-                          Task, CalendarEvent, Note, Book]:
-                db.query(model).filter(getattr(model, "user_id", None) == uid
-                                       if hasattr(model, "user_id") else True).delete()
+            from sqlalchemy import text as _sql
+            engine = get_session().bind or get_engine()
+            for table in ["critic_decisions", "workflow_history", "workflow_state",
+                          "tasks", "calendar_events", "notes", "books"]:
+                with get_engine().connect() as conn:
+                    try:
+                        conn.execute(_sql(f"ALTER TABLE {table} ADD COLUMN user_id INTEGER"))
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
+                    try:
+                        conn.execute(_sql(f"DELETE FROM {table} WHERE user_id = :uid OR user_id IS NULL"), {"uid": uid})
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
             db.commit()
             print("🗑  Existing data cleared")
 
