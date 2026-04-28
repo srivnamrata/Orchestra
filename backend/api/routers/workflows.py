@@ -919,7 +919,7 @@ async def seed_user_data(reset: bool = False):
         import importlib.util, pathlib
         spec = importlib.util.spec_from_file_location(
             "seed_user_data",
-            pathlib.Path(__file__).parent.parent.parent / "backend" / "seed_user_data.py"
+            pathlib.Path(__file__).parent.parent.parent / "seed_user_data.py"
         )
         mod = importlib.util.module_from_spec(spec)
         if reset:
