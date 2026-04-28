@@ -1,13 +1,17 @@
 """
-LLM Service - Integration with Google Vertex AI
+LLM Service — Vertex AI (primary) → Google AI Studio (fallback) → Mock (dev).
+Set GEMINI_API_KEY env var to enable Google AI Studio fallback.
 """
 
 import json
+import os
 import logging
 from typing import Optional
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 
 class LLMService(ABC):
@@ -17,19 +21,23 @@ class LLMService(ABC):
 
 
 class MockLLMService(LLMService):
+    """Returns stub JSON — only used in local dev (USE_MOCK_LLM=true)."""
     async def call(self, prompt: str, **kwargs) -> str:
-        if "execution plan" in prompt.lower():
-            return json.dumps({
-                "goal": "Execute workflow", "total_steps": 3,
-                "steps": [
-                    {"step_id": 0, "name": "Prepare context",  "type": "note",     "agent": "knowledge", "depends_on": [], "timeout_seconds": 10},
-                    {"step_id": 1, "name": "Schedule meeting",  "type": "calendar", "agent": "scheduler", "depends_on": [0], "timeout_seconds": 20},
-                    {"step_id": 2, "name": "Create task",       "type": "task",     "agent": "task",      "depends_on": [], "timeout_seconds": 10}
-                ]
-            })
+        if "execution plan" in prompt.lower() or "concrete execution plan" in prompt.lower():
+            # Return a proper JSON array so parse_llm_json works
+            goal_line = next((l for l in prompt.split("\n") if l.startswith("Goal:")), "Goal: task")
+            goal_text = goal_line.replace("Goal:", "").strip()[:60]
+            from datetime import datetime, timedelta
+            due = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+            return json.dumps([
+                {"step": 1, "agent": "task",      "action": f"Create task for: {goal_text}",
+                 "detail": goal_text, "params": {"title": goal_text, "description": goal_text, "due_date": due, "priority": "medium"}},
+                {"step": 2, "agent": "scheduler", "action": "Block time to work on goal",
+                 "detail": f"Calendar block for: {goal_text}",
+                 "params": {"title": f"Work on: {goal_text[:40]}", "date": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"), "duration_minutes": 60}},
+            ])
         if "revised plan" in prompt.lower():
-            return json.dumps({"revised_plan": [], "explanation": "Optimized",
-                               "efficiency_gain": 0.20, "confidence": 0.80})
+            return json.dumps({"revised_plan": [], "explanation": "Optimized", "efficiency_gain": 0.20, "confidence": 0.80})
         if "on track" in prompt.lower():
             return json.dumps({"on_track": True, "reasoning": "Progress aligns", "recommended_action": "Continue"})
         if "more efficient" in prompt.lower():
@@ -37,75 +45,65 @@ class MockLLMService(LLMService):
         return json.dumps({"response": "OK"})
 
 
-class VertexAILLMService(LLMService):
-    """
-    Vertex AI Gemini service with automatic model fallback.
-    Tries models in order until one works.
-    """
+class GoogleAIStudioLLMService(LLMService):
+    """Uses google-genai SDK with a Gemini API key — no Vertex AI quota needed."""
 
-    # Models in preference order — newest/cheapest first
+    def __init__(self, api_key: str, model: str = "gemini-2.0-flash"):
+        from google import genai
+        self.client = genai.Client(api_key=api_key)
+        self.model  = model
+        logger.info(f"✅ Google AI Studio LLM: {model}")
+
+    async def call(self, prompt: str, **kwargs) -> str:
+        import asyncio
+        loop = asyncio.get_event_loop()
+        # google-genai is sync; run in executor to avoid blocking
+        response = await loop.run_in_executor(
+            None,
+            lambda: self.client.models.generate_content(model=self.model, contents=prompt)
+        )
+        return response.text
+
+
+class VertexAILLMService(LLMService):
+    """Vertex AI Gemini with automatic model fallback."""
+
     FALLBACK_MODELS = [
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-001",
-        "gemini-1.5-flash-001",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro-001",
-        "gemini-1.5-pro",
-        "gemini-1.0-pro",
+        "gemini-2.0-flash", "gemini-2.0-flash-001",
+        "gemini-1.5-flash-001", "gemini-1.5-flash",
+        "gemini-1.5-pro-001",  "gemini-1.5-pro",
     ]
 
     def __init__(self, project_id: str, location: str = "us-central1",
                  model: str = "gemini-2.0-flash"):
         import vertexai
         from vertexai.generative_models import GenerativeModel
-
         self.project_id = project_id
         self.location   = location
         self.model_name = model
-
         vertexai.init(project=project_id, location=location)
         self._GenerativeModel = GenerativeModel
-
-        # Try to build model — validate it exists at init time
-        self.model = self._try_init_model(model)
-
-    def _try_init_model(self, model_name: str):
-        """Try to initialise a model, return the model object."""
-        from vertexai.generative_models import GenerativeModel
-        logger.info(f"🤖 Initialising Vertex AI model: {model_name}")
-        return GenerativeModel(model_name)
+        self.model = GenerativeModel(model)
 
     async def call(self, prompt: str, **kwargs) -> str:
-        """
-        Call Vertex AI. If the configured model returns 404,
-        automatically try fallback models and remember the working one.
-        """
-        # Build list: configured model first, then fallbacks
-        models_to_try = [self.model_name] + [
-            m for m in self.FALLBACK_MODELS if m != self.model_name
-        ]
-
+        from vertexai.generative_models import GenerativeModel
+        models_to_try = [self.model_name] + [m for m in self.FALLBACK_MODELS if m != self.model_name]
         last_err = None
         for model_name in models_to_try:
             try:
-                model = self._try_init_model(model_name)
+                model    = GenerativeModel(model_name)
                 response = await model.generate_content_async(prompt)
                 if model_name != self.model_name:
-                    logger.info(f"✅ Switched to working model: {model_name}")
-                    self.model_name = model_name   # remember for next call
-                    self.model = model
+                    logger.info(f"✅ Switched to working Vertex model: {model_name}")
+                    self.model_name = model_name
                 return response.text
             except Exception as e:
                 err_str = str(e)
-                if "404" in err_str or "not found" in err_str.lower() or "does not have access" in err_str.lower():
-                    logger.warning(f"⚠️  Model {model_name} not available, trying next...")
+                if any(k in err_str for k in ["404", "not found", "does not have access", "PERMISSION_DENIED"]):
+                    logger.warning(f"⚠️  Vertex model {model_name} unavailable, trying next…")
                     last_err = e
                     continue
-                # Any other error (quota, auth, etc) — raise immediately
-                logger.error(f"Vertex AI call failed ({model_name}): {e}")
                 raise
-
-        logger.error(f"❌ All Vertex AI models failed. Last error: {last_err}")
         raise last_err
 
 
@@ -115,7 +113,14 @@ def create_llm_service(use_mock: bool = True,
     if use_mock:
         logger.info("Using Mock LLM Service (development)")
         return MockLLMService()
+
+    # If a Gemini API key is available, prefer Google AI Studio (no Vertex quota needed)
+    if GEMINI_API_KEY:
+        logger.info("Using Google AI Studio LLM (GEMINI_API_KEY set)")
+        return GoogleAIStudioLLMService(api_key=GEMINI_API_KEY, model=model)
+
     if not project_id:
         raise ValueError("GCP project_id required for Vertex AI")
+
     logger.info(f"Using Vertex AI LLM Service (project: {project_id}, model: {model})")
     return VertexAILLMService(project_id, model=model)

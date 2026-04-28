@@ -146,6 +146,104 @@ def _is_status_goal(goal: str) -> bool:
     return any(kw in g for kw in _STATUS_KEYWORDS)
 
 
+_WRITER_KEYWORDS = [
+    "summarize my email", "summarise my email", "email summary",
+    "summarize emails", "summarise emails", "what are my emails",
+    "unread emails", "urgent emails", "inbox summary",
+    "writer agent", "draft", "compose email", "write email",
+    "write a report", "draft a report", "summarize slack",
+    "slack summary", "what did i miss", "digest",
+]
+
+def _is_writer_goal(goal: str) -> bool:
+    g = goal.lower()
+    return any(kw in g for kw in _WRITER_KEYWORDS)
+
+
+async def _stream_writer_summarize(
+    goal: str, priority: str, workflow_id: str, user_id=None
+) -> AsyncGenerator[str, None]:
+    """
+    Writer / summarize path: fetches real data from connected integrations
+    (Gmail, Slack) and produces an inline summary widget.
+    Falls back to a helpful explanation if integrations aren't connected.
+    """
+    from backend.database import get_integration
+
+    ts = lambda: datetime.now().strftime("%H:%M:%S")
+
+    def think(agent, role, message, thought_type="thought"):
+        state.emit_thought(agent, role, message, thought_type)
+        type_map = {"thought": "thinking", "dialogue": "info", "finding": "info",
+                    "action": "info", "alert": "error", "result": "success"}
+        return _sse("activity", {
+            "type":      type_map.get(thought_type, "info"),
+            "category":  "analysis",
+            "message":   f'<span class="trace-{agent}">[{role}]</span> {message}',
+            "timestamp": ts(),
+        })
+
+    g = goal.lower()
+
+    yield think("orchestrator", "Orchestrator",
+        "Goal classified as <strong>WRITE / SUMMARISE</strong> — checking connected integrations…", "thought")
+    await asyncio.sleep(0.15)
+
+    sections = []
+
+    # ── Gmail ─────────────────────────────────────────────────────────────────
+    wants_email = any(w in g for w in ["email", "gmail", "inbox", "mail", "unread"])
+    if wants_email or not any(w in g for w in ["slack", "channel"]):
+        gmail_row = get_integration(user_id, "gmail") if user_id else None
+        if gmail_row and gmail_row["token"]:
+            yield think("writer", "Writer Agent",
+                "Gmail connected — fetching urgent and unread emails…", "action")
+            await asyncio.sleep(0.2)
+            try:
+                extra = gmail_row["extra"] or {}
+                data  = await state.email_service.get_summary(
+                    refresh_token=gmail_row["token"],
+                    client_id=extra.get("client_id", ""),
+                    client_secret=extra.get("client_secret", ""),
+                )
+                msgs = data.get("urgent", [])
+                yield think("writer", "Writer Agent",
+                    f"Fetched {data.get('unread_count',0)} unread emails · {len(msgs)} urgent. Drafting summary…", "result")
+                sections.append({"type": "gmail", "email": data.get("email",""),
+                                  "unread": data.get("unread_count", 0), "items": msgs[:8]})
+            except Exception as e:
+                yield think("writer", "Writer Agent", f"Gmail fetch failed: {str(e)[:80]}", "alert")
+        else:
+            yield think("writer", "Writer Agent",
+                "Gmail not connected — go to <strong>Integrations</strong> to connect your account.", "alert")
+            sections.append({"type": "not_connected", "service": "Gmail"})
+
+    # ── Slack ─────────────────────────────────────────────────────────────────
+    wants_slack = any(w in g for w in ["slack", "channel", "message", "mention"])
+    if wants_slack:
+        slack_row = get_integration(user_id, "slack") if user_id else None
+        if slack_row and slack_row["token"]:
+            yield think("writer", "Writer Agent",
+                "Slack connected — fetching mentions and action items…", "action")
+            await asyncio.sleep(0.2)
+            try:
+                channels = (slack_row["extra"] or {}).get("channels")
+                data     = await state.slack_service.get_summary(slack_row["token"], channels)
+                yield think("writer", "Writer Agent",
+                    f"Found {len(data.get('mentions',[]))} mentions, {len(data.get('action_items',[]))} action items.", "result")
+                sections.append({"type": "slack", "username": data.get("username",""),
+                                  "mentions": data.get("mentions",[])[:6],
+                                  "actions":  data.get("action_items",[])[:4]})
+            except Exception as e:
+                yield think("writer", "Writer Agent", f"Slack fetch failed: {str(e)[:80]}", "alert")
+        else:
+            sections.append({"type": "not_connected", "service": "Slack"})
+
+    yield _sse("render-digest", {"goal": goal, "generated": ts(), "sections": sections})
+    yield _sse("done", {"workflow_id": workflow_id, "steps": 2,
+                         "tasks_created": 0, "events_scheduled": 0})
+
+
 _AUDIT_KEYWORDS = [
     "audit", "risk", "assess", "assessment", "review strategy",
     "check for risks", "analyse risks", "analyze risks",
@@ -503,46 +601,98 @@ async def _stream_status_overview(
 
 
 def _heuristic_plan(goal: str, priority: str, now: datetime) -> list:
-    """Goal-aware fallback plan used when Gemini is unavailable."""
+    """
+    Goal-aware fallback plan used when LLM is unavailable.
+    Understands intent well enough to produce meaningful steps without LLM.
+    """
     g        = goal.lower()
     tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
     in_2days = (now + timedelta(days=2)).strftime("%Y-%m-%d")
     in_week  = (now + timedelta(days=7)).strftime("%Y-%m-%d")
 
-    sched_kw    = ["schedule", "meeting", "appointment", "block", "remind", "event", "book"]
-    research_kw = ["research", "find", "search", "look up", "investigate", "learn about", "study"]
-    news_kw     = ["news", "headlines", "updates", "latest", "trending", "what's new"]
+    # ── Extract a clean action title from the goal ────────────────────────────
+    # Strip filler phrases so task titles are meaningful
+    fillers = ["please", "can you", "could you", "i want to", "i need to",
+               "help me", "i'd like to", "would like to", "ask", "tell me to"]
+    clean = goal.strip()
+    for f in fillers:
+        if clean.lower().startswith(f):
+            clean = clean[len(f):].strip()
 
+    # Capitalise first word
+    clean = clean[0].upper() + clean[1:] if clean else goal
+
+    # ── Intent detection ──────────────────────────────────────────────────────
+    task_kw     = ["create task", "add task", "new task", "track", "todo", "to-do", "remind me to",
+                   "don't forget", "make sure", "follow up"]
+    sched_kw    = ["schedule", "meeting", "appointment", "block time", "book", "set up a call",
+                   "standup", "sync", "1:1", "one on one", "calendar"]
+    research_kw = ["research", "find", "search for", "look up", "investigate", "learn about",
+                   "study", "analyse", "analyze", "compare"]
+    news_kw     = ["news", "headlines", "updates", "latest", "trending", "what's new", "what is happening"]
+    write_kw    = ["write", "draft", "compose", "prepare", "create a document", "create a report",
+                   "summarize", "summarise", "summary", "document"]
+
+    has_task     = any(w in g for w in task_kw)
     has_sched    = any(w in g for w in sched_kw)
     has_research = any(w in g for w in research_kw)
     has_news     = any(w in g for w in news_kw)
+    has_write    = any(w in g for w in write_kw)
 
     steps: list = []
-    if has_news:
+
+    if has_news and not has_sched:
         steps.append({"step": 1, "agent": "news", "action": "Fetch relevant news",
-                      "detail": f"Get latest news on: {goal}",
-                      "params": {"topic": goal}})
+                      "detail": f"Get latest news on: {goal}", "params": {"topic": goal}})
+
     if has_research:
-        steps.append({"step": len(steps) + 1, "agent": "research", "action": "Find research papers",
-                      "detail": f"Research: {goal}",
-                      "params": {"topic": goal}})
-    if has_sched and not steps:
-        steps.append({"step": 1, "agent": "task", "action": "Create tracking task",
+        steps.append({"step": len(steps)+1, "agent": "research", "action": "Find research papers",
+                      "detail": f"Research: {goal}", "params": {"topic": goal}})
+
+    if has_sched:
+        # Extract meeting title: strip scheduling verbs
+        meet_title = clean
+        for v in ["Schedule", "Book", "Set up", "Block time for", "Arrange"]:
+            if meet_title.startswith(v):
+                meet_title = meet_title[len(v):].strip()
+        meet_title = meet_title[:70] or "Meeting"
+
+        if not has_task:
+            # Create a tracking task for the meeting prep
+            steps.append({"step": len(steps)+1, "agent": "task",
+                          "action": f"Track: {meet_title}",
+                          "detail": f"Tracking task for meeting: {meet_title}",
+                          "params": {"title": f"Prepare for: {meet_title}", "description": goal,
+                                     "due_date": tomorrow, "priority": priority}})
+        steps.append({"step": len(steps)+1, "agent": "scheduler",
+                      "action": f"Schedule: {meet_title}",
+                      "detail": f"Block calendar for: {meet_title}",
+                      "params": {"title": meet_title, "date": in_2days, "duration_minutes": 60}})
+
+    elif has_task and not steps:
+        task_title = clean[:80]
+        steps.append({"step": 1, "agent": "task", "action": f"Create task: {task_title}",
                       "detail": goal,
-                      "params": {"title": goal[:80], "description": goal, "due_date": tomorrow, "priority": priority}})
-        steps.append({"step": 2, "agent": "scheduler", "action": "Schedule event",
-                      "detail": f"Block time for: {goal}",
-                      "params": {"title": goal[:60], "date": in_2days, "duration_minutes": 60}})
-    elif not steps:
-        steps.append({"step": 1, "agent": "knowledge", "action": "Gather context",
-                      "detail": f"Understand scope of: {goal}",
+                      "params": {"title": task_title, "description": goal,
+                                 "due_date": in_week, "priority": priority}})
+
+    elif has_write and not steps:
+        # Writing goal: create a task + knowledge context, no spurious event
+        steps.append({"step": 1, "agent": "knowledge", "action": "Gather context for writing",
+                      "detail": f"Collect relevant information for: {clean}",
                       "params": {"query": goal}})
-        steps.append({"step": 2, "agent": "task", "action": "Create task",
+        steps.append({"step": 2, "agent": "task", "action": f"Draft: {clean[:60]}",
+                      "detail": f"Writing task: {goal}",
+                      "params": {"title": f"Draft: {clean[:60]}", "description": goal,
+                                 "due_date": in_week, "priority": priority}})
+
+    elif not steps:
+        # Unknown intent: create ONE task only — no spurious kickoff event
+        steps.append({"step": 1, "agent": "task", "action": clean[:60],
                       "detail": goal,
-                      "params": {"title": goal[:80], "description": f"Goal: {goal}", "due_date": in_week, "priority": priority}})
-        steps.append({"step": 3, "agent": "scheduler", "action": "Schedule kickoff",
-                      "detail": f"Block time for: {goal}",
-                      "params": {"title": f"Kickoff: {goal[:45]}", "date": in_2days, "duration_minutes": 60}})
+                      "params": {"title": clean[:80], "description": goal,
+                                 "due_date": in_week, "priority": priority}})
+
     return steps
 
 
@@ -1182,7 +1332,10 @@ async def orchestrate_stream(request: OrchestrateRequest, user=Depends(get_curre
     logger.info(f"🌊 Streaming orchestration {workflow_id}: {request.goal} (user={user_id})")
 
     # Route to specialised handlers before hitting the full LLM pipeline
-    if _is_audit_goal(request.goal):
+    if _is_writer_goal(request.goal):
+        generator = _stream_writer_summarize(
+            request.goal, request.priority, workflow_id, user_id=user_id)
+    elif _is_audit_goal(request.goal):
         generator = _stream_audit_risks(
             request.goal, request.priority, workflow_id, user_id=user_id)
     elif _is_status_goal(request.goal):

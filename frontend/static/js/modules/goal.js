@@ -1,6 +1,6 @@
 import { apiUrl, apiFetch } from './api.js';
 import { activityFeed } from './feed.js';
-import { renderNews, renderResearch, renderStatusOverview, renderAuditReport } from './renderers.js';
+import { renderNews, renderResearch, renderStatusOverview, renderAuditReport, renderDigest } from './renderers.js';
 
 let _nlActiveStream = null;
 
@@ -62,6 +62,8 @@ export async function submitGoal() {
                     const payload = JSON.parse(data);
                     if (event === 'activity') {
                         activityFeed.log(payload.message, payload.type || 'info', payload.category || 'agent', payload.widget);
+                    } else if (event === 'render-digest') {
+                        renderDigest(payload);
                     } else if (event === 'render-audit') {
                         renderAuditReport(payload);
                     } else if (event === 'render-status') {
@@ -84,6 +86,10 @@ export async function submitGoal() {
                             });
                         }
                     } else if (event === 'done') {
+                        // Refresh intel panel so newly created tasks/events appear immediately
+                        if ((payload.tasks_created || 0) > 0)    window.runDemo?.('tasks');
+                        if ((payload.events_scheduled || 0) > 0) window.runDemo?.('schedule');
+
                         const steps    = payload.steps            || 0;
                         const tasks    = payload.tasks_created    || 0;
                         const events   = payload.events_scheduled || 0;

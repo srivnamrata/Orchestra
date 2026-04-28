@@ -1,5 +1,72 @@
 // Pure DOM-rendering functions — no external module imports.
 
+export function renderDigest(data) {
+    const feed = document.getElementById('feed');
+    if (!feed) return;
+
+    const card = document.createElement('div');
+    card.className = 'run-card';
+    card.style.cssText = 'margin:8px 0;border-top:3px solid var(--g-violet-mid,#7c4dff)';
+
+    const sections = (data.sections || []).map(sec => {
+        if (sec.type === 'not_connected') {
+            return `<div style="padding:14px;border:1px dashed var(--md-surface-3);border-radius:10px;text-align:center;margin-bottom:12px">
+                <span class="ms" style="font-size:28px;color:var(--md-dim)">link_off</span>
+                <div style="font-size:13px;font-weight:600;margin:6px 0 4px">${sec.service} not connected</div>
+                <button class="goal-run" style="font-size:12px;margin-top:6px" onclick="window.switchView('integrations-settings')">
+                    <span class="ms sm">settings</span> Connect ${sec.service}
+                </button>
+            </div>`;
+        }
+        if (sec.type === 'gmail') {
+            const items = (sec.items || []).slice(0, 6).map(e => `
+                <div style="padding:8px 0;border-bottom:1px solid var(--md-surface-2);display:flex;gap:8px;align-items:start">
+                    <span class="ms" style="font-size:16px;color:${e.priority==='high'?'var(--g-red)':'var(--g-blue)'};flex-shrink:0">mail</span>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:12px;font-weight:600;color:var(--md-on-surface);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.subject}</div>
+                        <div style="font-size:10px;color:var(--md-dim);margin-top:2px">${e.from?.replace(/<.*?>/g,'').trim()} · ${e.date||''}</div>
+                        ${e.snippet ? `<div style="font-size:11px;color:var(--md-dim);margin-top:3px;line-height:1.4">${e.snippet}</div>` : ''}
+                    </div>
+                    <a href="${e.url||'https://mail.google.com'}" target="_blank" style="flex-shrink:0">
+                        <span class="ms" style="font-size:16px;color:var(--g-blue)">open_in_new</span>
+                    </a>
+                </div>`).join('');
+            return `<div style="margin-bottom:12px">
+                <div style="font-size:10px;font-weight:700;color:var(--md-dim);letter-spacing:.5px;margin-bottom:8px">
+                    📧 GMAIL · ${sec.email} · ${sec.unread} UNREAD
+                </div>
+                ${items || '<div style="color:var(--md-dim);font-size:12px;padding:12px 0">No urgent emails found.</div>'}
+            </div>`;
+        }
+        if (sec.type === 'slack') {
+            const mentions = (sec.mentions || []).slice(0, 4).map(m => `
+                <div style="padding:6px 0;border-bottom:1px solid var(--md-surface-2)">
+                    <div style="font-size:12px;color:var(--md-on-surface)">${m.text?.replace(/<[^>]+>/g,' ').trim()}</div>
+                    <div style="font-size:10px;color:var(--md-dim);margin-top:2px">${m.channel} · ${m.ts}</div>
+                </div>`).join('');
+            return `<div style="margin-bottom:12px">
+                <div style="font-size:10px;font-weight:700;color:var(--md-dim);letter-spacing:.5px;margin-bottom:8px">
+                    💬 SLACK · @${sec.username} · MENTIONS
+                </div>
+                ${mentions || '<div style="color:var(--md-dim);font-size:12px;padding:12px 0">No mentions found.</div>'}
+            </div>`;
+        }
+        return '';
+    }).join('');
+
+    card.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <span class="ms" style="color:var(--g-violet);font-size:22px">summarize</span>
+            <div style="flex:1">
+                <div style="font-weight:700;font-size:13px">Writer Agent — Digest</div>
+                <div style="font-size:11px;color:var(--md-dim)">${data.goal} · ${data.generated||''}</div>
+            </div>
+        </div>
+        ${sections || '<div style="color:var(--md-dim);font-size:12px">No integrations connected. Visit <strong>Integrations</strong> to set up Gmail and Slack.</div>'}`;
+
+    feed.prepend(card);
+}
+
 export function renderAuditReport(data) {
     const feed = document.getElementById('feed');
     if (!feed) return;
