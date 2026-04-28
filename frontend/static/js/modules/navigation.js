@@ -38,6 +38,10 @@ export function switchView(viewId) {
         window.loadIntegrationStatuses();
     }
 
+    if (viewId === 'library' && window.fetchBooks) {
+        window.fetchBooks();
+    }
+
     if (target && typeof target.scrollIntoView === 'function') {
         target.scrollIntoView({ block: 'start', behavior: 'auto' });
     }
