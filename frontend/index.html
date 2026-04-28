@@ -867,6 +867,133 @@ html.dark .qchip {
 .run-card.paused { border-top: 3px solid #f29900; }
 .run-card.done   { border-top: 3px solid var(--g-blue); }
 
+/* ── Live orchestration canvas ── */
+.workflow-live-board {
+  margin-bottom: 16px;
+  padding: 18px;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, rgba(124,77,255,0.10), rgba(26,115,232,0.06));
+  border: 1px solid rgba(124,77,255,0.18);
+  box-shadow: var(--shadow-2);
+}
+html.dark .workflow-live-board {
+  background: linear-gradient(135deg, rgba(197,138,249,0.14), rgba(138,180,248,0.08));
+  border-color: rgba(197,138,249,0.18);
+}
+.workflow-live-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.workflow-live-title { font-size: 18px; font-weight: 700; letter-spacing: -0.2px; }
+.workflow-live-sub { font-size: 12px; color: var(--md-muted); margin-top: 4px; }
+.workflow-stage-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.workflow-stage {
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--md-surface-2);
+  background: var(--glass-card-bg);
+  backdrop-filter: var(--glass-card-blur);
+  -webkit-backdrop-filter: var(--glass-card-blur);
+}
+.workflow-stage.active {
+  border-color: rgba(124,77,255,0.35);
+  box-shadow: 0 10px 24px rgba(124,77,255,0.12);
+}
+.workflow-stage-label { font-size: 10px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase; color: var(--md-dim); }
+.workflow-stage-value { font-size: 13px; font-weight: 600; margin-top: 3px; color: var(--md-on-surface); }
+.workflow-board-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+.workflow-panel {
+  background: rgba(255,255,255,0.60);
+  border: 1px solid var(--md-surface-2);
+  border-radius: 18px;
+  padding: 14px;
+}
+html.dark .workflow-panel {
+  background: rgba(28,27,32,0.55);
+}
+.workflow-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.workflow-panel-title { font-size: 11px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: var(--md-dim); }
+.workflow-step-list { display: flex; flex-direction: column; gap: 10px; }
+.workflow-step-card {
+  border-radius: 14px;
+  border: 1px solid var(--md-surface-2);
+  background: var(--md-surface);
+  padding: 12px;
+}
+.workflow-step-card.pending { border-left: 4px solid var(--md-surface-3); }
+.workflow-step-card.starting { border-left: 4px solid var(--g-blue-mid); }
+.workflow-step-card.executing { border-left: 4px solid var(--g-green-mid); }
+.workflow-step-card.completed { border-left: 4px solid var(--g-green-mid); }
+.workflow-step-card.failed { border-left: 4px solid var(--g-red); }
+.workflow-step-card.replanning,
+.workflow-step-card.replanned { border-left: 4px solid var(--g-violet); }
+.workflow-step-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.workflow-step-name { font-size: 13px; font-weight: 700; color: var(--md-on-surface); margin-bottom: 4px; }
+.workflow-step-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.workflow-step-desc { font-size: 11px; color: var(--md-muted); line-height: 1.45; margin-top: 8px; }
+.workflow-step-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--md-surface-1);
+  color: var(--md-muted);
+  border: 1px solid var(--md-surface-2);
+}
+.workflow-step-chip.active {
+  background: var(--g-violet-light);
+  color: var(--g-violet);
+  border-color: rgba(124,77,255,0.22);
+}
+.workflow-log-list { display: flex; flex-direction: column; gap: 8px; }
+.workflow-log-item {
+  border-radius: 12px;
+  padding: 10px 11px;
+  border: 1px solid var(--md-surface-2);
+  background: var(--md-surface);
+}
+.workflow-log-item strong { font-weight: 700; }
+.workflow-log-title { font-size: 12px; font-weight: 700; color: var(--md-on-surface); margin-bottom: 4px; }
+.workflow-log-body { font-size: 11px; color: var(--md-muted); line-height: 1.45; }
+.workflow-empty-state {
+  padding: 20px;
+  border-radius: 14px;
+  border: 1px dashed var(--md-surface-3);
+  color: var(--md-muted);
+  text-align: center;
+  background: rgba(255,255,255,0.4);
+}
+html.dark .workflow-empty-state { background: rgba(28,27,32,0.35); }
+
+@media (max-width: 1100px) {
+  .workflow-board-grid { grid-template-columns: 1fr; }
+  .workflow-stage-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .workflow-live-head { flex-direction: column; }
+  .workflow-stage-strip { grid-template-columns: 1fr; }
+  .workflow-panel { padding: 12px; }
+}
+
 .run-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.2px; }
 .run-meta  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .run-tag {
@@ -2132,7 +2259,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
       <div class="tb-clock" id="clock"></div>
     </div>
     <!-- Agent status pill -->
-    <div class="agent-status-pill">
+    <div class="agent-status-pill" onclick="toggleActiveWorkflows()" style="cursor: pointer" title="View active workflows">
       <div class="asp-seg"><span class="asp-dot dot-run"></span><span id="ats-run">3 running</span></div>
       <div class="asp-seg"><span class="asp-dot dot-busy"></span><span id="ats-busy">1 busy</span></div>
       <div class="asp-seg"><span class="asp-dot dot-stub"></span><span>2 stub</span></div>
@@ -2730,6 +2857,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
           <h2 style="color:var(--md-on-surface)">Active Workflows</h2>
           <p style="color:var(--md-dim)">Monitoring real-time agent orchestration and sequence logs.</p>
         </div>
+        <div id="workflow-live-board" class="workflow-live-board" style="display:none"></div>
         <div id="workflows-list" class="workflows-grid">
            <!-- Populated by app.js -->
            <div class="empty-state" style="padding:40px; text-align:center; background:var(--md-surface-1); border-radius:16px">
@@ -3006,6 +3134,18 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
       <div class="ct-title" style="font-size:13px;margin:0 0 2px">Task marked complete</div>
       <div class="ct-sub" id="ct-goal-text" style="font-size:11px"></div>
     </div>
+  </div>
+</div>
+
+<!-- ── Active Workflows Popover ── -->
+<div class="notif-backdrop" id="workflowsBackdrop" onclick="closeActiveWorkflows()"></div>
+<div class="notif-panel" id="workflowsPanel">
+  <div class="notif-head">
+    <div class="notif-title">Active Workflows</div>
+    <button class="notif-action-btn" onclick="closeActiveWorkflows()">Close</button>
+  </div>
+  <div class="notif-list" id="activeWorkflowsList">
+    <!-- Populated by navigation.js -->
   </div>
 </div>
 

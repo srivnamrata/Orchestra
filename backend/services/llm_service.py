@@ -24,18 +24,52 @@ class MockLLMService(LLMService):
     """Returns stub JSON — only used in local dev (USE_MOCK_LLM=true)."""
     async def call(self, prompt: str, **kwargs) -> str:
         if "execution plan" in prompt.lower() or "concrete execution plan" in prompt.lower():
-            # Return a proper JSON array so parse_llm_json works
+            # Return a structured workflow plan so the orchestrator can validate
+            # and execute by explicit step_id rather than list position.
             goal_line = next((l for l in prompt.split("\n") if l.startswith("Goal:")), "Goal: task")
             goal_text = goal_line.replace("Goal:", "").strip()[:60]
             from datetime import datetime, timedelta
             due = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-            return json.dumps([
-                {"step": 1, "agent": "task",      "action": f"Create task for: {goal_text}",
-                 "detail": goal_text, "params": {"title": goal_text, "description": goal_text, "due_date": due, "priority": "medium"}},
-                {"step": 2, "agent": "scheduler", "action": "Block time to work on goal",
-                 "detail": f"Calendar block for: {goal_text}",
-                 "params": {"title": f"Work on: {goal_text[:40]}", "date": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"), "duration_minutes": 60}},
-            ])
+            return json.dumps({
+                "goal": goal_text,
+                "schema_version": "workflow-plan/v1",
+                "total_steps": 2,
+                "steps": [
+                    {"step_id": 0, "name": f"Create task for: {goal_text}", "type": "create_task",
+                     "agent": "task", "depends_on": [], "inputs": {
+                         "title": goal_text,
+                         "description": goal_text,
+                         "due_date": due,
+                         "priority": "medium",
+                     }, "expected_outputs": ["task_id"], "error_handling": "retry", "timeout_seconds": 30},
+                    {"step_id": 1, "name": "Block time to work on goal", "type": "schedule_event",
+                     "agent": "scheduler", "depends_on": [0], "inputs": {
+                         "title": f"Work on: {goal_text[:40]}",
+                         "date": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"),
+                         "duration_minutes": 60,
+                     }, "expected_outputs": ["event_id"], "error_handling": "retry", "timeout_seconds": 30},
+                ],
+                "parallel_groups": [[0], [1]],
+                "estimated_duration_seconds": 90,
+            })
+        if "writer agent" in prompt.lower() or "draft a high-quality document" in prompt.lower():
+            return json.dumps({
+                "title": "AI Strategy Brief",
+                "content": f"Summary for {prompt.split('Topic:')[-1].splitlines()[0].strip() or 'the requested topic'}.",
+                "word_count": 120,
+            })
+        if "coder agent" in prompt.lower() or "analyze the code for bugs" in prompt.lower():
+            return json.dumps({
+                "analysis": "Loop indexing can be simplified for readability.",
+                "suggested_fix": "for item in x: print(item)",
+                "complexity_impact": "low",
+            })
+        if "liaison agent" in prompt.lower() or "rewrite this for" in prompt.lower():
+            return json.dumps({
+                "original": "Do this now.",
+                "revised": "Could you please take a look at this when you have a moment?",
+                "tone_changes": ["Added politeness", "softened urgency", "kept the request clear"],
+            })
         if "revised plan" in prompt.lower():
             return json.dumps({"revised_plan": [], "explanation": "Optimized", "efficiency_gain": 0.20, "confidence": 0.80})
         if "on track" in prompt.lower():

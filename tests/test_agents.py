@@ -6,9 +6,12 @@ Demonstrates the Critic Agent's autonomous replanning capabilities.
 import pytest
 import asyncio
 from typing import List, Dict, Any
+from types import SimpleNamespace
+from datetime import datetime
 
 from backend.agents.critic_agent import CriticAgent, RiskLevel, WorkflowIssue
 from backend.agents.orchestrator_agent import OrchestratorAgent
+from backend.agents.workflow_schema import WorkflowPlan
 from backend.services.knowledge_graph_service import KnowledgeGraphService
 from backend.agents.writer_agent import WriterAgent
 from backend.agents.coder_agent import CoderAgent
@@ -193,6 +196,243 @@ async def test_knowledge_graph_path_finding(setup_services):
     
     print(f"✅ Path Finding Test Passed")
     print(f"   Found path: {' -> '.join(path)}")
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_respects_explicit_step_ids(setup_services):
+    """Test that the orchestrator uses explicit step IDs instead of list order."""
+
+    orchestrator = setup_services["orchestrator"]
+
+    class RecordingAgent:
+        def __init__(self):
+            self.calls = []
+
+        async def execute(self, step, previous_results):
+            self.calls.append(
+                {
+                    "step_id": step["step_id"],
+                    "previous_keys": list(previous_results.keys()),
+                }
+            )
+            return {
+                "status": "success",
+                "step_id": step["step_id"],
+                "previous_keys": list(previous_results.keys()),
+            }
+
+    recording_agent = RecordingAgent()
+    orchestrator.register_sub_agent("task", recording_agent)
+
+    workflow_id = "wf-explicit-ids"
+    orchestrator.workflows[workflow_id] = {
+        "request": SimpleNamespace(goal="Ship product", priority="high"),
+        "status": "executing",
+        "plan": None,
+        "plan_schema_version": None,
+        "started_at": datetime.now().isoformat(),
+    }
+
+    plan = WorkflowPlan.from_payload(
+        {
+            "goal": "Ship product",
+            "schema_version": "workflow-plan/v1",
+            "total_steps": 2,
+            "steps": [
+                {
+                    "step_id": 20,
+                    "name": "Finalize launch",
+                    "type": "create_task",
+                    "agent": "task",
+                    "depends_on": [10],
+                    "inputs": {"title": "Finalize launch"},
+                    "timeout_seconds": 30,
+                },
+                {
+                    "step_id": 10,
+                    "name": "Draft launch plan",
+                    "type": "create_task",
+                    "agent": "task",
+                    "depends_on": [],
+                    "inputs": {"title": "Draft launch plan"},
+                    "timeout_seconds": 30,
+                },
+            ],
+            "parallel_groups": [[10, 20]],
+            "estimated_duration_seconds": 60,
+        },
+        default_goal="Ship product",
+    )
+
+    await orchestrator._execute_plan(workflow_id, plan)
+
+    assert list(orchestrator.workflows[workflow_id]["results"].keys()) == [10, 20]
+    assert recording_agent.calls[0]["step_id"] == 10
+    assert recording_agent.calls[1]["step_id"] == 20
+    assert 10 in recording_agent.calls[1]["previous_keys"]
+
+
+@pytest.mark.asyncio
+async def test_critic_normalizes_workflow_plan(setup_services):
+    """Test that the Critic stores a typed WorkflowPlan internally."""
+
+    critic = setup_services["critic"]
+    workflow_id = "wf-critic-typed-plan"
+    raw_plan = [
+        {"step_id": 7, "name": "First", "depends_on": []},
+        {"step_id": 12, "name": "Second", "depends_on": [7]},
+    ]
+
+    await critic.start_monitoring(workflow_id, raw_plan, goal="Typed planning")
+
+    stored_plan = critic.current_workflows[workflow_id]["plan"]
+    assert isinstance(stored_plan, WorkflowPlan)
+    assert stored_plan.total_steps == 2
+    assert [step.step_id for step in stored_plan.steps] == [7, 12]
+    assert stored_plan.steps[1].depends_on == [7]
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_interrupts_running_workflow_on_replan(setup_services):
+    """Test that an accepted critic replan interrupts and swaps the live workflow."""
+
+    orchestrator = setup_services["orchestrator"]
+
+    class InterruptibleAgent:
+        def __init__(self):
+            self.calls = []
+            self.step1_started = asyncio.Event()
+            self.step1_cancelled = asyncio.Event()
+
+        async def execute(self, step, previous_results):
+            step_id = step["step_id"]
+            self.calls.append(step_id)
+            if step_id == 1:
+                self.step1_started.set()
+                try:
+                    await asyncio.sleep(5)
+                except asyncio.CancelledError:
+                    self.step1_cancelled.set()
+                    raise
+            return {
+                "status": "success",
+                "step_id": step_id,
+                "previous_keys": list(previous_results.keys()),
+            }
+
+    agent = InterruptibleAgent()
+    orchestrator.register_sub_agent("task", agent)
+
+    workflow_id = "wf-interrupt-replan"
+    orchestrator.workflows[workflow_id] = {
+        "request": SimpleNamespace(goal="Ship product", priority="high"),
+        "status": "executing",
+        "plan": None,
+        "plan_schema_version": None,
+        "plan_revision": 0,
+        "replan_event": asyncio.Event(),
+        "started_at": datetime.now().isoformat(),
+    }
+
+    initial_plan = WorkflowPlan.from_payload(
+        {
+            "goal": "Ship product",
+            "schema_version": "workflow-plan/v1",
+            "total_steps": 3,
+            "steps": [
+                {
+                    "step_id": 0,
+                    "name": "Setup",
+                    "type": "create_task",
+                    "agent": "task",
+                    "depends_on": [],
+                    "inputs": {"title": "Setup"},
+                    "timeout_seconds": 30,
+                },
+                {
+                    "step_id": 1,
+                    "name": "Slow processing",
+                    "type": "create_task",
+                    "agent": "task",
+                    "depends_on": [0],
+                    "inputs": {"title": "Slow processing"},
+                    "timeout_seconds": 30,
+                },
+                {
+                    "step_id": 2,
+                    "name": "Legacy finalize",
+                    "type": "create_task",
+                    "agent": "task",
+                    "depends_on": [1],
+                    "inputs": {"title": "Legacy finalize"},
+                    "timeout_seconds": 30,
+                },
+            ],
+            "parallel_groups": [[0], [1], [2]],
+            "estimated_duration_seconds": 180,
+        },
+        default_goal="Ship product",
+    )
+
+    revised_plan = WorkflowPlan.from_payload(
+        {
+            "goal": "Ship product",
+            "schema_version": "workflow-plan/v1",
+            "total_steps": 3,
+            "steps": [
+                {
+                    "step_id": 0,
+                    "name": "Setup",
+                    "type": "create_task",
+                    "agent": "task",
+                    "depends_on": [],
+                    "inputs": {"title": "Setup"},
+                    "timeout_seconds": 30,
+                },
+                {
+                    "step_id": 2,
+                    "name": "Recovery path",
+                    "type": "create_task",
+                    "agent": "task",
+                    "depends_on": [0],
+                    "inputs": {"title": "Recovery path"},
+                    "timeout_seconds": 30,
+                },
+                {
+                    "step_id": 3,
+                    "name": "Finalize after replan",
+                    "type": "create_task",
+                    "agent": "task",
+                    "depends_on": [2],
+                    "inputs": {"title": "Finalize after replan"},
+                    "timeout_seconds": 30,
+                },
+            ],
+            "parallel_groups": [[0], [2], [3]],
+            "estimated_duration_seconds": 120,
+        },
+        default_goal="Ship product",
+    )
+
+    execute_task = asyncio.create_task(orchestrator._execute_plan(workflow_id, initial_plan))
+
+    await asyncio.wait_for(agent.step1_started.wait(), timeout=2.0)
+
+    await orchestrator.handle_critic_replan(
+        workflow_id,
+        {
+            "approved_by_critic": True,
+            "reasoning": "Interrupt current path and switch to a recovery flow",
+            "efficiency_gain": 0.25,
+            "revised_plan": revised_plan.to_dict(),
+        },
+    )
+
+    await asyncio.wait_for(execute_task, timeout=5.0)
+    assert agent.step1_cancelled.is_set()
+    assert orchestrator.workflows[workflow_id]["status"] == "completed"
+    assert list(orchestrator.workflows[workflow_id]["results"].keys()) == [0, 2, 3]
+    assert 1 not in orchestrator.workflows[workflow_id]["results"]
 
 
 def test_critic_agent_explains_decisions():

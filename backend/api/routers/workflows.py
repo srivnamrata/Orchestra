@@ -738,6 +738,14 @@ async def _stream_orchestration(goal: str, priority: str, workflow_id: str, user
     yield think("orchestrator", "Orchestrator",
         f'Received goal: <em>"{goal}"</em> (priority: {priority}). Starting analysis…',
         "thought")
+    yield _sse("workflow-state", {
+        "workflow_id": workflow_id,
+        "goal": goal,
+        "status": "planning",
+        "progress": 10,
+        "plan_revision": 0,
+        "message": "Preparing execution plan…",
+    })
     await asyncio.sleep(0.2)
 
     # ── 2. Orchestrator → LLM: decompose ─────────────────────────────────────
@@ -806,6 +814,14 @@ Respond ONLY with a valid JSON array, no markdown fences:
         yield think("critic", "Critic Agent",
             "⚠️ Scheduler step has no preceding task. Recommending Orchestrator add a task step first for traceability.",
             "alert")
+        yield _sse("workflow-state", {
+            "workflow_id": workflow_id,
+            "goal": goal,
+            "status": "replanning",
+            "progress": 55,
+            "plan_revision": 1,
+            "message": "Critic detected a better path and is reshaping the plan.",
+        })
         yield think("orchestrator", "Orchestrator",
             "Noted. Injecting a task step before the scheduler step.",
             "dialogue")
@@ -883,6 +899,35 @@ Respond ONLY with a valid JSON array, no markdown fences:
         "message":   f"📋 Plan approved — <strong>{len(steps)} steps</strong> ready to execute",
         "timestamp": ts(),
     })
+    yield _sse("workflow-state", {
+        "workflow_id": workflow_id,
+        "goal": goal,
+        "status": "executing",
+        "progress": 70,
+        "plan_revision": 1 if has_sched and not has_task else 0,
+        "message": "Executing the active plan.",
+    })
+    yield _sse("workflow-plan", {
+        "workflow_id": workflow_id,
+        "goal": goal,
+        "priority": priority,
+        "status": "executing",
+        "plan_revision": 1 if has_sched and not has_task else 0,
+        "total_steps": len(steps),
+        "parallel_groups": [],
+        "steps": [
+            {
+                "step_id": i,
+                "sequence_index": i + 1,
+                "name": step.get("action", f"Step {i + 1}"),
+                "agent": step.get("agent", "knowledge"),
+                "detail": step.get("detail", ""),
+                "params": step.get("params", {}),
+                "status": "pending",
+            }
+            for i, step in enumerate(steps)
+        ],
+    })
 
     # ── 5. Execute each step with live agent dialogue ─────────────────────────
     results = []
@@ -891,7 +936,20 @@ Respond ONLY with a valid JSON array, no markdown fences:
         action = step.get("action", "Processing")
         detail = step.get("detail", "")
         params = step.get("params", {})
+        step_started_at = datetime.now()
+        step_result_summary = None
+        step_failed = False
 
+        yield _sse("workflow-step", {
+            "workflow_id": workflow_id,
+            "step_id": i,
+            "sequence_index": i + 1,
+            "step_name": action,
+            "agent": agent,
+            "status": "starting",
+            "plan_revision": 1 if has_sched and not has_task else 0,
+            "message": f"{agent.title()} preparing: {action}",
+        })
         yield think("orchestrator", "Orchestrator",
             f"Delegating step {i+1}/{len(steps)} to {agent.upper()} Agent: {action}",
             "dialogue")
@@ -919,6 +977,7 @@ Respond ONLY with a valid JSON array, no markdown fences:
                     user_id=user_id,
                 )
                 results.append({"type": "task", "id": result.task_id, "title": result.title})
+                step_result_summary = f'Task "{result.title}" created'
                 yield think("task", "Task Agent",
                     f"✅ Task persisted to DB with ID {result.task_id}. Reporting back to Orchestrator.",
                     "result")
@@ -1046,10 +1105,12 @@ Respond ONLY with a valid JSON array, no markdown fences:
                         "timestamp": ts(),
                         "result":    {"type": "event", "id": result.event_id, "title": result.title, "date": event_date},
                     })
+                    step_result_summary = f'Event "{result.title}" scheduled for {event_date}'
                 except Exception as ev_err:
                     yield think("scheduler", "Scheduler Agent",
                         f"DB write failed: {str(ev_err)[:60]}. Event not persisted.",
                         "alert")
+                    step_failed = True
 
             elif agent == "knowledge":
                 query = params.get("query", goal)
@@ -1071,12 +1132,14 @@ Respond ONLY with a valid JSON array, no markdown fences:
                     yield think("knowledge", "Knowledge Agent",
                         "Context gathered from internal knowledge graph.",
                         "finding")
+                    step_result_summary = f"Context gathered for {query[:40]}"
                 yield _sse("activity", {
                     "type":      "info",
                     "category":  "analysis",
                     "message":   f'🧩 Knowledge Agent: context gathered for <em>"{query[:80]}"</em>',
                     "timestamp": ts(),
                 })
+                step_result_summary = f"Context gathered for {query[:40]}"
 
             elif agent == "research":
                 topic = params.get("topic", goal)
@@ -1105,11 +1168,13 @@ Respond ONLY with a valid JSON array, no markdown fences:
                         "message":   f'🔬 Research Agent: fetched <strong>{len(papers)} papers</strong> on <em>"{topic[:60]}"</em>',
                         "timestamp": ts(),
                     })
+                    step_result_summary = f"Fetched {len(papers)} papers on {topic[:40]}"
                 except Exception as re_err:
                     logger.warning(f"Research fetch failed: {re_err}")
                     yield think("research", "Research Agent",
                         f"Live fetch failed ({str(re_err)[:60]}). Using curated fallback.",
                         "alert")
+                    step_result_summary = f"Research fallback used for {topic[:40]}"
                     yield _sse("activity", {
                         "type":      "warning",
                         "category":  "analysis",
@@ -1126,6 +1191,7 @@ Respond ONLY with a valid JSON array, no markdown fences:
                 res = await agent_inst.execute(step, {})
                 
                 yield think("writer", "Writer Agent", f"✅ Draft complete: '{res.get('data',{}).get('title')}'", "result")
+                step_result_summary = f"Drafted {res.get('data',{}).get('title') or topic[:40]}"
                 yield _sse("activity", {
                     "type": "success", "category": "outputs",
                     "message": f"✍️ Writer produced: <strong>{res.get('data',{}).get('title')}</strong>",
@@ -1141,6 +1207,7 @@ Respond ONLY with a valid JSON array, no markdown fences:
                 res = await agent_inst.execute(step, {})
 
                 yield think("coder", "Coder Agent", "✅ Analysis complete. Efficiency optimizations found.", "result")
+                step_result_summary = f"Code analysis complete for {obj[:40]}"
                 yield _sse("activity", {
                     "type": "success", "category": "analysis",
                     "message": f"💻 Coder Agent analyzed: <strong>{obj[:40]}</strong>",
@@ -1159,6 +1226,7 @@ Respond ONLY with a valid JSON array, no markdown fences:
                 res = await agent_inst.execute(step, {})
 
                 yield think("liaison", "Liaison Agent", "✅ Communication polished. Tone balanced.", "result")
+                step_result_summary = "Communication refined for empathy"
                 yield _sse("activity", {
                     "type": "success", "category": "status",
                     "message": f"🤝 Liaison Agent optimized communication for empathy.",
@@ -1200,6 +1268,7 @@ Respond ONLY with a valid JSON array, no markdown fences:
                     yield think("news", "News Agent",
                         f"Live fetch failed ({str(ne_err)[:60]}). Using curated fallback.",
                         "alert")
+                    step_result_summary = f"News fallback used for {topic[:40]}"
                     yield _sse("activity", {
                         "type":      "warning",
                         "category":  "analysis",
@@ -1210,6 +1279,7 @@ Respond ONLY with a valid JSON array, no markdown fences:
         except Exception as step_err:
             import traceback
             logger.error(f"Step execution error ({agent}): {step_err}\n{traceback.format_exc()}")
+            step_failed = True
             yield think(agent, agent.title() + " Agent",
                 f"Error during execution: {str(step_err)[:100]}. Reporting to Orchestrator.",
                 "alert")
@@ -1219,6 +1289,20 @@ Respond ONLY with a valid JSON array, no markdown fences:
                 "message":   f"⚠️ [{agent.upper()}] failed: <code>{str(step_err)[:120]}</code>",
                 "timestamp": ts(),
             })
+
+        step_duration = round((datetime.now() - step_started_at).total_seconds(), 2)
+        yield _sse("workflow-step", {
+            "workflow_id": workflow_id,
+            "step_id": i,
+            "sequence_index": i + 1,
+            "step_name": action,
+            "agent": agent,
+            "status": "failed" if step_failed else "completed",
+            "plan_revision": 1 if has_sched and not has_task else 0,
+            "duration_seconds": step_duration,
+            "result_summary": step_result_summary or ("Execution failed" if step_failed else "Completed"),
+            "message": step_result_summary or ("Execution failed" if step_failed else "Completed"),
+        })
 
         _persist_reasoning(workflow_id, wf_store)   # write after every step
         await asyncio.sleep(0.2)
@@ -1469,4 +1553,3 @@ async def seed_user_data(reset: bool = False):
     except Exception as e:
         import traceback
         raise HTTPException(status_code=500, detail=f"{e}\n{traceback.format_exc()}")
-

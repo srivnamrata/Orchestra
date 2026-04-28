@@ -12,6 +12,7 @@ from datetime import datetime
 import logging
 from enum import Enum
 from backend.services.llm_utils import parse_llm_json
+from backend.agents.workflow_schema import WorkflowPlan
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +39,8 @@ class WorkflowIssue:
 @dataclass
 class ReplanDecision:
     """Autonomous replan decision made by Critic Agent"""
-    original_plan: List[Dict[str, Any]]
-    revised_plan: List[Dict[str, Any]]
+    original_plan: WorkflowPlan
+    revised_plan: WorkflowPlan
     reasoning: str
     efficiency_gain: float  # percentage
     risk_mitigation: List[str]
@@ -67,7 +68,7 @@ class CriticAgent:
         self.current_workflows: Dict[str, Dict] = {}
         self.decision_history: List[ReplanDecision] = []
         
-    async def start_monitoring(self, workflow_id: str, workflow_plan: List[Dict[str, Any]],
+    async def start_monitoring(self, workflow_id: str, workflow_plan: Any,
                                goal: str = ""):
         """
         Start monitoring a workflow for potential issues.
@@ -75,9 +76,10 @@ class CriticAgent:
         guess it from plan[0] (steps don't own the workflow goal).
         """
         logger.info(f"🔍 Critic Agent starting monitoring for workflow {workflow_id}")
+        normalized_plan = WorkflowPlan.from_payload(workflow_plan, default_goal=goal)
         self.current_workflows[workflow_id] = {
-            "plan":       workflow_plan,
-            "goal":       goal,           # authoritative source of the workflow goal
+            "plan":       normalized_plan,
+            "goal":       goal or normalized_plan.goal,  # authoritative source of the workflow goal
             "progress":   [],
             "issues":     [],
             "start_time": datetime.now().isoformat(),
@@ -158,9 +160,8 @@ class CriticAgent:
         plan = workflow["plan"]
         dependencies = {}
         
-        for i, step in enumerate(plan):
-            deps = step.get("depends_on", [])
-            dependencies[i] = deps
+        for step in plan.steps:
+            dependencies[step.step_id] = list(step.depends_on)
         
         # Check for cycles using graph traversal
         visited = set()
@@ -181,7 +182,7 @@ class CriticAgent:
             return False
         
         # Check all steps
-        for step_id in range(len(plan)):
+        for step_id in dependencies:
             if step_id not in visited:
                 if has_cycle(step_id):
                     return WorkflowIssue(
@@ -209,33 +210,42 @@ class CriticAgent:
         # Calculate average step duration
         step_durations = {}
         for execution in progress:
+            step_id = execution.get("step_id")
             step_name = execution.get("step_name")
             duration = execution.get("duration_seconds", 0)
-            
-            if step_name not in step_durations:
-                step_durations[step_name] = []
-            step_durations[step_name].append(duration)
+
+            key = step_id if step_id is not None else step_name
+            if key not in step_durations:
+                step_durations[key] = []
+            step_durations[key].append(duration)
         
         # Identify outliers (steps taking 2x average time)
         avg_duration = sum(sum(v) for v in step_durations.values()) / len(progress) if progress else 0
         
-        for step_name, durations in step_durations.items():
+        steps_by_id = {step.step_id: step for step in plan.steps}
+        steps_by_name = {step.name: step for step in plan.steps}
+
+        for step_key, durations in step_durations.items():
             avg_step_duration = sum(durations) / len(durations)
             
             if avg_step_duration > (avg_duration * 2) and avg_step_duration > 5:  # >5 sec and 2x avg
-                # Find step index
-                step_idx = next((i for i, s in enumerate(plan) if s.get("name") == step_name), -1)
+                step_obj = steps_by_id.get(step_key)
+                if step_obj is None:
+                    step_obj = steps_by_name.get(step_key)
                 
                 # Check how many steps depend on this
-                dependents = sum(1 for s in plan if step_name in s.get("depends_on", []))
+                dependents = 0
+                if step_obj is not None:
+                    dependents = sum(1 for s in plan.steps if step_obj.step_id in s.depends_on)
                 
                 if dependents > 0:
+                    affected_step_id = step_obj.step_id if step_obj is not None else -1
                     issues.append(WorkflowIssue(
                         issue_type="bottleneck",
                         risk_level=RiskLevel.HIGH if dependents > 2 else RiskLevel.MEDIUM,
-                        description=f"Step '{step_name}' is a bottleneck (avg {avg_step_duration:.1f}s). "
+                        description=f"Step '{step_obj.name if step_obj else step_key}' is a bottleneck (avg {avg_step_duration:.1f}s). "
                                    f"{dependents} downstream steps waiting.",
-                        affected_steps=[step_idx],
+                        affected_steps=[affected_step_id],
                         detection_time=datetime.now().isoformat(),
                         evidence={
                             "avg_duration": avg_step_duration,
@@ -289,8 +299,8 @@ class CriticAgent:
     async def _detect_inefficiency(self, workflow: Dict) -> Optional[WorkflowIssue]:
         """Detect if a more efficient path exists for the same goal."""
         plan = workflow["plan"]
-        goal = plan[0].get("goal", "")
-        plan_text = json.dumps(plan, indent=2)
+        goal = plan.goal or workflow.get("goal") or ""
+        plan_text = json.dumps(plan.to_dict(), indent=2)
 
         prompt = f"""
         Goal: {goal}
@@ -320,7 +330,7 @@ class CriticAgent:
                 issue_type="suboptimal_plan",
                 risk_level=RiskLevel.HIGH,   # HIGH so _attempt_replan is triggered
                 description=f"More efficient approach found ({gain*100:.0f}% faster). {analysis.get('reasoning')}",
-                affected_steps=list(range(len(plan))),
+                affected_steps=[step.step_id for step in plan.steps],
                 detection_time=datetime.now().isoformat(),
                 evidence={
                     "alternative_plan": analysis.get("alternative_plan"),
@@ -342,7 +352,10 @@ class CriticAgent:
         if issue.issue_type == "suboptimal_plan":
             # LLM already provided the alternative plan and gain during detection;
             # reuse them to avoid a redundant second LLM call.
-            revised_plan    = issue.evidence.get("alternative_plan") or []
+            revised_plan    = WorkflowPlan.from_payload(
+                issue.evidence.get("alternative_plan") or [],
+                default_goal=workflow.get("goal", ""),
+            )
             efficiency_gain = float(issue.evidence.get("efficiency_gain", 0.0))
             # Confidence is proportional to reported gain: higher gain → higher confidence.
             confidence      = min(0.95, 0.6 + efficiency_gain * 0.5)
@@ -355,7 +368,7 @@ class CriticAgent:
             efficiency_gain = result["efficiency_gain"]
             confidence      = result["confidence"]
 
-        if not revised_plan:
+        if not revised_plan.steps:
             logger.warning(f"Revised plan is empty for {workflow_id}, skipping replan")
             return
 
@@ -388,8 +401,8 @@ class CriticAgent:
                 topic=f"workflow-{workflow_id}-replan",
                 message={
                     "action":            "replan",
-                    "original_plan":     original_plan,
-                    "revised_plan":      revised_plan,
+                    "original_plan":     original_plan.to_dict(),
+                    "revised_plan":      revised_plan.to_dict(),
                     "reasoning":         reasoning,
                     "efficiency_gain":   efficiency_gain,
                     "approved_by_critic": True,
@@ -397,6 +410,7 @@ class CriticAgent:
             )
 
             self.decision_history.append(decision)
+            workflow["plan"] = revised_plan
             workflow["status"] = "replanned"
 
             from backend.database import save_critic_decision
@@ -405,8 +419,8 @@ class CriticAgent:
                 reasoning=reasoning,
                 efficiency_gain=efficiency_gain,
                 confidence_score=confidence,
-                original_plan=original_plan,
-                revised_plan=revised_plan,
+                original_plan=original_plan.to_dict(),
+                revised_plan=revised_plan.to_dict(),
                 accepted=True,
             )
         else:
@@ -431,14 +445,14 @@ class CriticAgent:
                 reasoning=reasoning,
                 efficiency_gain=efficiency_gain,
                 confidence_score=confidence,
-                original_plan=original_plan,
-                revised_plan=revised_plan,
+                original_plan=original_plan.to_dict(),
+                revised_plan=revised_plan.to_dict(),
                 accepted=False,
             )
 
     async def _generate_revised_plan(
         self,
-        original_plan: List[Dict],
+        original_plan: WorkflowPlan,
         issue: WorkflowIssue,
         progress: List[Dict],
     ) -> Optional[Dict]:
@@ -447,7 +461,7 @@ class CriticAgent:
         Returns a dict with keys: plan (list), efficiency_gain (float), confidence (float).
         Returns None when the LLM call fails.
         """
-        original_text = json.dumps(original_plan, indent=2)
+        original_text = json.dumps(original_plan.to_dict(), indent=2)
         progress_text = json.dumps(progress[-3:], indent=2) if progress else "No progress yet"
 
         prompt = f"""
@@ -476,7 +490,10 @@ class CriticAgent:
             response = await self.llm_service.call(prompt)
             data      = parse_llm_json(response)
             return {
-                "plan":            data.get("revised_plan", []),
+                "plan":            WorkflowPlan.from_payload(
+                    data.get("revised_plan", []),
+                    default_goal=original_plan.goal,
+                ),
                 "efficiency_gain": float(data.get("efficiency_gain", 0.0)),
                 "confidence":      float(data.get("confidence", 0.0)),
             }
@@ -494,8 +511,12 @@ class CriticAgent:
             rows = get_critic_decisions(limit=100)
             return [
                 ReplanDecision(
-                    original_plan=[],   # raw JSON not re-parsed to avoid overhead
-                    revised_plan=[],
+                    original_plan=WorkflowPlan.from_payload(
+                        json.loads(r.original_plan_json) if r.original_plan_json else []
+                    ),
+                    revised_plan=WorkflowPlan.from_payload(
+                        json.loads(r.revised_plan_json) if r.revised_plan_json else []
+                    ),
                     reasoning=r.reasoning,
                     efficiency_gain=r.efficiency_gain,
                     risk_mitigation=[],

@@ -39,6 +39,57 @@ export function switchView(viewId) {
     }
 }
 
+export function closeActiveWorkflows() {
+    const panel = document.getElementById('workflowsPanel');
+    const backdrop = document.getElementById('workflowsBackdrop');
+    if (panel && backdrop) {
+        panel.classList.remove('open');
+        backdrop.classList.remove('open');
+    }
+}
+
+export async function toggleActiveWorkflows() {
+    const panel = document.getElementById('workflowsPanel');
+    const backdrop = document.getElementById('workflowsBackdrop');
+    if (!panel || !backdrop) return;
+
+    if (panel.classList.contains('open')) {
+        closeActiveWorkflows();
+        return;
+    }
+
+    panel.classList.add('open');
+    backdrop.classList.add('open');
+
+    const list = document.getElementById('activeWorkflowsList');
+    list.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--md-muted); font-size: 12px;">Loading active tasks...</div>';
+
+    try {
+        const token = localStorage.getItem('orch-session-token');
+        const res = await fetch('/api/tasks', { headers: { 'X-Session-Token': token } });
+        const data = await res.json();
+        const inProgress = (data.tasks || []).filter(t => t.status === 'in_progress');
+
+        if (inProgress.length === 0) {
+            list.innerHTML = '<div style="padding: 32px; text-align: center; color: var(--md-muted);"><span class="ms" style="font-size: 32px; display: block; margin-bottom: 8px; opacity: 0.3;">inventory_2</span>No workflows currently running.</div>';
+            return;
+        }
+
+        list.innerHTML = inProgress.map(wf => `
+            <div class="notif-item" onclick="window.switchView('workflows'); window.closeActiveWorkflows();">
+                <div class="ni-icon" style="background: var(--g-blue-light); color: var(--g-blue);"><span class="ms">bolt</span></div>
+                <div class="ni-body">
+                    <div class="ni-title">${wf.title}</div>
+                    <div class="ni-desc">Priority: ${wf.priority.toUpperCase()} • Status: In Progress</div>
+                    <div class="ni-time">Target: ${wf.due_date ? new Date(wf.due_date).toLocaleDateString() : 'No deadline'}</div>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        list.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--g-red);">Error loading active workflows.</div>';
+    }
+}
+
 export function openPalette() {
     const p   = document.getElementById('palette');
     const b   = document.getElementById('paletteBackdrop');
@@ -82,4 +133,6 @@ document.addEventListener('click', e => {
 window.switchView        = switchView;
 window.openPalette       = openPalette;
 window.closePalette      = closePalette;
+window.toggleActiveWorkflows = toggleActiveWorkflows;
+window.closeActiveWorkflows = closeActiveWorkflows;
 window.showCompletionToast = showCompletionToast;
