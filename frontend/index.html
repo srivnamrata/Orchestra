@@ -1475,33 +1475,6 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
     <div class="brand-chip">PRO</div>
   </div>
 
-  <!-- Goal input -->
-  <div class="sidebar-goal">
-    <div class="goal-box">
-      <textarea class="goal-input" id="goalInput"
-        placeholder="Submit a goal to the Orchestrator…"
-        oninput="autoExpandGoal(this); updateGoalMeta(this)"></textarea>
-      <div class="goal-meta" id="goalMeta">
-        <span class="goal-nudge" id="goalNudge">Agents work better with detail</span>
-        <span class="goal-char-count" id="goalCharCount">0 / 500</span>
-      </div>
-      <div class="goal-footer">
-        <div class="priority-pills">
-          <button class="pp" onclick="setPriority(this)">Low</button>
-          <button class="pp active" onclick="setPriority(this)">Med</button>
-          <button class="pp" onclick="setPriority(this)">High</button>
-          <button class="pp p-crit" onclick="setPriority(this)">Crit</button>
-        </div>
-        <button class="goal-mic" title="Voice input"><span class="ms sm">mic</span></button>
-        <button class="goal-run" onclick="submitGoal()"><span class="ms sm">play_arrow</span> Run</button>
-      </div>
-    </div>
-    <div class="quick-chips">
-      <div class="qchip" onclick="setGoal('AI Research')">AI Research</div>
-      <div class="qchip" onclick="setGoal('Week Planning')">Week Plan</div>
-      <div class="qchip" onclick="setGoal('News Briefing')">News Brief</div>
-    </div>
-  </div>
 
   <!-- Nav -->
   <nav class="sidebar-nav">
@@ -1595,6 +1568,35 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
         <div class="g-btns">
           <button class="g-btn outline" onclick="runDemo('critic')"><span class="ms sm">manage_search</span> Critic Replan</button>
           <button class="g-btn white" onclick="runScan()"><span class="ms sm" style="color:var(--g-blue)">radar</span> Run Scan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Prompt Bar -->
+    <div class="main-goal anim a1" style="margin-bottom: 24px;">
+      <div class="goal-box" style="padding: 16px 20px; border-radius: var(--radius-xl); background: var(--md-surface); box-shadow: var(--shadow-1);">
+        <textarea class="goal-input" id="goalInput"
+          placeholder="What would you like the Orchestra to orchestrate today?"
+          style="font-size: 15px; min-height: 44px;"
+          oninput="autoExpandGoal(this); updateGoalMeta(this)"></textarea>
+        <div class="goal-meta" id="goalMeta">
+          <span class="goal-nudge" id="goalNudge">Agents work better with detail</span>
+          <span class="goal-char-count" id="goalCharCount">0 / 500</span>
+        </div>
+        <div class="goal-footer" style="padding-top: 12px; margin-top: 12px;">
+          <div class="quick-chips" style="margin-top: 0; margin-right: auto;">
+            <div class="qchip" onclick="setGoal('AI Research')">AI Research</div>
+            <div class="qchip" onclick="setGoal('Week Planning')">Week Plan</div>
+            <div class="qchip" onclick="setGoal('News Briefing')">News Brief</div>
+          </div>
+          <div class="priority-pills" style="flex: none; margin-right: 12px;">
+            <button class="pp" onclick="setPriority(this)">Low</button>
+            <button class="pp active" onclick="setPriority(this)">Med</button>
+            <button class="pp" onclick="setPriority(this)">High</button>
+            <button class="pp p-crit" onclick="setPriority(this)">Crit</button>
+          </div>
+          <button class="goal-mic" title="Voice input"><span class="ms sm">mic</span></button>
+          <button class="goal-run" onclick="submitGoal()" style="padding: 8px 18px; font-size: 13px;"><span class="ms sm">play_arrow</span> Run Workflow</button>
         </div>
       </div>
     </div>
