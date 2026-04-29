@@ -35,7 +35,7 @@ spec:
         - name: USE_FIRESTORE
           value: "true"
         - name: USE_MOCK_PUBSUB
-          value: "false"
+          value: "true"
         - name: CRITIC_AGENT_ENABLED
           value: "true"
         resources:
