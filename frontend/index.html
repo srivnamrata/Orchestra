@@ -128,26 +128,30 @@ html.dark .intel-panel {
 /* Dark mode: scrollbar */
 html.dark ::-webkit-scrollbar-thumb { background: var(--md-surface-3); }
 
-/* ── Theme toggle button ── */
-.theme-toggle {
-  width: 36px; height: 36px; border-radius: 50%;
-  border: none; background: none; cursor: pointer;
+/* ── Theme toggle pill ── */
+.theme-pill {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 72px; height: 36px; border-radius: 18px;
+  background: var(--md-surface-1);
+  padding: 3px; cursor: pointer; position: relative;
+  border: 1px solid var(--md-surface-2);
+}
+.tp-icon {
+  width: 28px; height: 28px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  color: var(--md-muted); transition: background 0.15s, color 0.15s !important;
-  position: relative; overflow: hidden;
+  color: var(--md-muted); z-index: 2; transition: color 0.2s;
 }
-.theme-toggle:hover { background: var(--md-surface-1); color: var(--g-blue); }
-.theme-toggle .icon-sun,
-.theme-toggle .icon-moon {
-  position: absolute;
-  transition: transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.3s !important;
+.theme-pill::before {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 28px; height: 28px; background: var(--md-surface);
+  border-radius: 50%; box-shadow: var(--shadow-sm);
+  transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+  z-index: 1; border: 1px solid var(--md-surface-3);
 }
-/* Light mode: show sun, hide moon */
-.theme-toggle .icon-sun  { transform: rotate(0deg) scale(1); opacity: 1; }
-.theme-toggle .icon-moon { transform: rotate(90deg) scale(0); opacity: 0; }
-/* Dark mode: show moon, hide sun */
-html.dark .theme-toggle .icon-sun  { transform: rotate(-90deg) scale(0); opacity: 0; }
-html.dark .theme-toggle .icon-moon { transform: rotate(0deg) scale(1); opacity: 1; }
+html:not(.dark) .theme-pill::before { transform: translateX(0); }
+html.dark .theme-pill::before { transform: translateX(36px); }
+html:not(.dark) .tp-sun { color: var(--g-blue); }
+html.dark .tp-moon { color: var(--g-blue); }
 
 
 
@@ -1521,22 +1525,17 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
       <div class="page-title">Dashboard</div>
       <div class="tb-clock" id="clock"></div>
     </div>
-    <!-- Agent status pill -->
-    <div class="agent-status-pill">
-      <div class="asp-seg"><span class="asp-dot dot-run"></span><span id="ats-run">3 running</span></div>
-      <div class="asp-seg"><span class="asp-dot dot-busy"></span><span id="ats-busy">1 busy</span></div>
-      <div class="asp-seg"><span class="asp-dot dot-stub"></span><span>2 stub</span></div>
-    </div>
+
     <div class="tb-right">
       <button class="tb-icon-btn" title="Search (⌘K)" onclick="openPalette()"><span class="ms">search</span></button>
       <button class="tb-icon-btn" title="Notifications" onclick="toggleNotifs()" id="notifBtn">
         <span class="ms">notifications</span>
         <div class="notif-dot" id="notifDot"></div>
       </button>
-      <button class="theme-toggle" id="themeToggle" title="Toggle dark mode" onclick="toggleTheme()">
-        <span class="ms icon-sun">light_mode</span>
-        <span class="ms icon-moon">dark_mode</span>
-      </button>
+      <div class="theme-pill" title="Toggle dark mode" onclick="toggleTheme()">
+        <div class="tp-icon tp-sun"><span class="ms sm">light_mode</span></div>
+        <div class="tp-icon tp-moon"><span class="ms sm">dark_mode</span></div>
+      </div>
 
     </div>
   </div>
