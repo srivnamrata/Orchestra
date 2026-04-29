@@ -138,6 +138,8 @@ _STATUS_KEYWORDS = [
     "how are", "where are", "list", "tell me", "give me", "project status",
     "what do i", "progress", "pending", "open tasks", "my tasks",
     "what should i", "what is due", "overdue", "behind",
+    "completed tasks", "recent tasks", "done tasks", "show recent",
+    "show completed", "show tasks", "completed", "recent"
 ]
 
 def _is_status_goal(goal: str) -> bool:
