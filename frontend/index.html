@@ -1583,7 +1583,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
             <button class="pp p-crit" onclick="setPriority(this)">Crit</button>
           </div>
           <button class="goal-mic" title="Voice input"><span class="ms sm">mic</span></button>
-          <button class="goal-run" onclick="submitGoal()" style="padding: 8px 18px; font-size: 13px;"><span class="ms sm">play_arrow</span> Run Workflow</button>
+          <button class="goal-run" id="goalSubmitBtn" onclick="submitGoal()" style="padding: 8px 18px; font-size: 13px;"><span class="ms sm">play_arrow</span> Run Workflow</button>
         </div>
       </div>
     </div>
@@ -2060,15 +2060,102 @@ setTimeout(() => {
   setTimeout(() => startThoughtCycler('card2', 'hint2'), 1800);
 }, 1200);
 
-// Goal
+// Goal Quick Fill
 function setGoal(t){const i=document.getElementById('goalInput');i.value=t;i.focus();}
-function submitGoal(){
-  const inp=document.getElementById('goalInput'),val=inp.value.trim();if(!val)return;
-  const n=new Date(),t=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
-  feedData.unshift({time:t,agent:'YOU',color:'var(--md-on-surface)',cbg:'var(--md-surface-1)',text:val,tag:'tasks'});
-  feedData.splice(8);feedFilter='all';document.querySelectorAll('.feed-tab').forEach((b,i)=>b.classList.toggle('active',i===0));renderFeed();
-  setTimeout(()=>{feedData.unshift({time:t,agent:'ORCHESTRATOR',color:'var(--g-green)',cbg:'var(--g-green-light)',text:`Received: <span class="f-hl" style="color:var(--g-green)">"${val}"</span>. Analyzing and assigning agents…`,tag:'status'});renderFeed();},900);
-  inp.value='';
+
+// Real-time Goal Execution
+async function submitGoal() {
+  const inp = document.getElementById('goalInput');
+  const val = inp.value.trim();
+  if(!val) return;
+  
+  const btn = document.getElementById('goalSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ms sm fa-spin">progress_activity</span> Running…';
+
+  const n = new Date();
+  const t = `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+  
+  // Add user message to feed
+  feedData.unshift({time:t, agent:'YOU', color:'var(--md-on-surface)', cbg:'var(--md-surface-1)', text:val, tag:'tasks'});
+  feedData.splice(8);
+  feedFilter = 'all';
+  document.querySelectorAll('.feed-tab').forEach((b,i) => b.classList.toggle('active', i===0));
+  renderFeed();
+
+  try {
+    const protocol = window.location.protocol;
+    const res = await fetch(`${protocol}//${window.location.host}/orchestrate/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal: val, priority: 'medium' })
+    });
+    
+    if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split(/\n\n/);
+        buffer = frames.pop();
+        
+        for (const frame of frames) {
+            if (!frame.trim()) continue;
+            let event = 'activity', data = '';
+            frame.split('\n').forEach(l => {
+                if (l.startsWith('event:')) event = l.slice(6).trim();
+                if (l.startsWith('data:'))  data  = l.slice(5).trim();
+            });
+            if (!data) continue;
+            
+            try {
+                const payload = JSON.parse(data);
+                const n2 = new Date();
+                const t2 = `${String(n2.getHours()).padStart(2,'0')}:${String(n2.getMinutes()).padStart(2,'0')}`;
+                
+                if (event === 'activity' && payload.message) {
+                    let agentName = 'ORCHESTRATOR';
+                    let color = 'var(--g-green)';
+                    let cbg = 'var(--g-green-light)';
+                    const msg = payload.message.toLowerCase();
+                    
+                    if (msg.includes('critic') || payload.message.includes('[Critic')) { 
+                        agentName = 'CRITIC'; color = 'var(--g-amber)'; cbg = 'var(--g-amber-light)'; 
+                    } else if (msg.includes('auditor') || payload.message.includes('[Auditor')) { 
+                        agentName = 'AUDITOR'; color = 'var(--g-teal)'; cbg = 'var(--g-teal-light)'; 
+                    } else if (msg.includes('task') || msg.includes('fetch')) { 
+                        agentName = 'TASK'; color = 'var(--g-blue)'; cbg = 'var(--g-blue-light)'; 
+                    }
+                    
+                    // Strip HTML tags for clean display in the feed
+                    const cleanText = payload.message.replace(/<[^>]*>?/gm, '');
+                    feedData.unshift({time:t2, agent:agentName, color:color, cbg:cbg, text:cleanText, tag:'status'});
+                    feedData.splice(8);
+                    renderFeed();
+                } else if (event === 'done') {
+                    feedData.unshift({time:t2, agent:'SYSTEM', color:'var(--g-violet)', cbg:'var(--g-violet-light)', text:`✨ Workflow completed successfully.`, tag:'status'});
+                    feedData.splice(8);
+                    renderFeed();
+                }
+            } catch(e) { console.error("Parse error:", e); }
+        }
+    }
+  } catch (err) {
+    console.error("Workflow error:", err);
+    const n2 = new Date();
+    const t2 = `${String(n2.getHours()).padStart(2,'0')}:${String(n2.getMinutes()).padStart(2,'0')}`;
+    feedData.unshift({time:t2, agent:'SYSTEM', color:'var(--g-red)', cbg:'var(--g-red-light)', text:`Workflow failed to execute: ${err.message}`, tag:'status'});
+    renderFeed();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="ms sm">play_arrow</span> Run Workflow';
+    inp.value = '';
+  }
 }
 
 // Demo buttons

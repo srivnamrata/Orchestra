@@ -282,9 +282,9 @@ function updateWorkflowCardState(payload = {}) {
 }
 
 export async function submitGoal() {
-    const textarea  = document.getElementById('nl-goal-input');
-    const submitBtn = document.getElementById('nl-submit-btn');
-    const priority  = document.getElementById('nl-priority')?.value || 'medium';
+    const textarea  = document.getElementById('goalInput');
+    const submitBtn = document.getElementById('goalSubmitBtn');
+    const priority  = document.querySelector('.priority-pills .pp.active')?.textContent.toLowerCase() || 'medium';
     const goal      = (textarea.value || '').trim();
     if (!goal) return;
 
