@@ -107,8 +107,7 @@ const STEPS = [
   {
     label:'Step 2 of 3', title:'Connect your tools',
     sub:'Orchestra surfaces bottlenecks from GitHub, Slack, and Email automatically.',
-    render:()=> {
-      return `
+    render:()=>`
       <div class="orch-ob-integrations">
         ${[['🐙','GitHub','PRs, issues, CI alerts',false],['💬','Slack','Mentions, channel messages',false],['📧','Email','Inbox flags, approvals',false],['📅','Google Calendar','Events, conflicts',true]].map(([i,n,d,c],idx)=>`
           <div class="orch-ob-integration">
@@ -116,15 +115,7 @@ const STEPS = [
             <div><div class="orch-ob-int-name">${n}</div><div class="orch-ob-int-desc">${d}</div></div>
             <button class="orch-ob-int-btn ${c?'connected':'connect'}" onclick="this.textContent='✓ Connected';this.className='orch-ob-int-btn connected'">${c?'✓ Connected':'Connect'}</button>
           </div>`).join('')}
-      </div>
-      <div style="margin-top:15px; padding:12px; border:1.5px dashed #dadce0; border-radius:12px; display:flex; align-items:center; gap:10px;">
-        <span style="font-size:20px">🚀</span>
-        <div style="flex:1">
-           <div style="font-size:12px; font-weight:700">Want to see it in action?</div>
-           <div style="font-size:10px; color:#5f6368">Load sample tasks and events to populate your dashboard.</div>
-        </div>
-        <button class="orch-ob-int-btn connect" id="seedDemoBtn" onclick="window.orchOnboard.seedData(this)">Load Demo</button>
-      </div>`;}
+      </div>`
   },
   {
     label:'Step 3 of 3', title:'Set your first goal',
@@ -169,47 +160,20 @@ window.orchOnboard = {
   prev() {
     if(window.onboardStep > 0) { window.onboardStep--; render(); }
   },
-  async seedData(btn) {
-    btn.disabled = true;
-    btn.textContent = 'Loading...';
-    try {
-      const res = await (window.apiFetch || fetch)('/seed-demo', { method: 'POST' });
-      if (res.ok) {
-        btn.textContent = '✓ Loaded';
-        btn.className = 'orch-ob-int-btn connected';
-      } else {
-        throw new Error(`HTTP Error: ${res.status}`);
-      }
-    } catch (e) {
-      btn.textContent = 'Error';
-      btn.disabled = false;
-    }
-  },
   finish() {
     const goalEl = document.getElementById('orchObGoalInput');
     if(goalEl && goalEl.value.trim()) {
       // Pre-fill the main goal input — adjust selector to match yours
-      const mainInput = document.querySelector('#nl-goal-input, #goal-input, .goal-input, textarea[name="goal"]');
+      const mainInput = document.querySelector('#goal-input, .goal-input, textarea[name="goal"]');
       if(mainInput) mainInput.value = goalEl.value.trim();
     }
-    // Trigger a proactive scan immediately so the "Thought Trace" is active
-    if (window.runScan) {
-      console.log("Onboarding complete: Triggering initial scan...");
-      window.runScan();
-    }
     document.getElementById('orchOnboardOverlay').classList.remove('open');
-    try { sessionStorage.setItem('orch-onboarded','true'); } catch(e){}
+    try { localStorage.setItem('orch-onboarded','true'); } catch(e){}
   }
 };
 
 // Show on first visit
-let done; try { done = sessionStorage.getItem('orch-onboarded'); } catch(e){}
-if(!done) setTimeout(() => window.orchOnboard.open(), 800);
-
-// Restart tour — callable from Ctrl+K palette or anywhere
-window.restartTour = function() {
-  try { sessionStorage.removeItem('orch-onboarded'); } catch(e){}
-  window.orchOnboard.open();
-};
+let done; try { done = localStorage.getItem('orch-onboarded'); } catch(e){}
+if(!done) setTimeout(() => window.orchOnboard.open(), 600);
 
 })();

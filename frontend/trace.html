@@ -497,7 +497,6 @@ html.dark .io-box { box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
   <div class="tb-title">Agent Trace — API Documentation Workflow</div>
   <div class="tb-meta" id="tbMeta">Run started 09:41 · 4 agents · 38m elapsed</div>
   <div class="tb-right">
-    <button class="tb-btn" onclick="clearTrace()"><span class="ms sm">delete</span> Clear</button>
     <button class="tb-btn" onclick="exportTrace()"><span class="ms sm">download</span> Export</button>
     <button class="tb-btn" onclick="replayTrace()"><span class="ms sm">replay</span> Replay</button>
     <button class="theme-toggle" onclick="toggleTheme()">
@@ -793,19 +792,29 @@ function renderTimeline(filter) {
           const typeColors = { decision:'#7c4dff', task:'#1a73e8', output:'#137333', error:'#d93025', handoff:'#007b83' };
           const typeColor = typeColors[ev.type] || a.color;
           bubble.style.setProperty('--event-color', typeColor);
-          const handoffBadge = (ev.handoffTo && ev.handoffTo !== agentId && LANE_AGENTS.includes(ev.handoffTo))
-            ? `<div style="margin-top:6px;display:inline-block;font-family:var(--font-mono);font-size:9px;background:${agentMap[ev.handoffTo]?.color||'#1a73e8'};color:white;padding:2px 8px;border-radius:100px;">→ ${agentMap[ev.handoffTo]?.name}</div>`
-            : '';
           bubble.innerHTML = `
             <div class="eb-type" style="color:${typeColor}">${ev.type.toUpperCase()}</div>
             <div class="eb-text">${ev.title}</div>
             <div class="eb-detail">${ev.detail}</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">
               ${(ev.tags||[]).map(t=>`<span class="eb-tag" style="background:${typeColor}18;color:${typeColor}">${t}</span>`).join('')}
-            </div>
-            ${handoffBadge}`;
+            </div>`;
           bubble.addEventListener('click', () => selectEvent(ev, bubble));
           cell.appendChild(bubble);
+
+          // Handoff arrow if needed
+          if(ev.handoffTo && ev.handoffTo !== agentId) {
+            const toIdx = LANE_AGENTS.indexOf(ev.handoffTo);
+            const fromIdx = LANE_AGENTS.indexOf(agentId);
+            if(toIdx !== -1 && fromIdx !== -1) {
+              // We'll handle visual handoff via a spanning div approach — just note it
+              bubble.style.position = 'relative';
+              const badge = document.createElement('div');
+              badge.style.cssText = `position:absolute;bottom:-6px;right:10px;font-family:var(--font-mono);font-size:9px;background:${agentMap[ev.handoffTo]?.color||'#1a73e8'};color:white;padding:1px 6px;border-radius:100px;z-index:3;`;
+              badge.textContent = '→ ' + agentMap[ev.handoffTo]?.name;
+              bubble.appendChild(badge);
+            }
+          }
         } else {
           cell.classList.add('lane-empty');
           cell.innerHTML = `<div style="width:1px;height:100%;background:var(--md-surface-2);margin:0 auto;border-radius:1px;"></div>`;
@@ -981,21 +990,6 @@ function selectEvent(ev, bubble) {
   dp.appendChild(content);
 }
 
-// ── Clear Trace ──
-function clearTrace() {
-  EVENTS.length = 0;
-  selectedEvent = null;
-  AGENTS.forEach(a => { a.tasks = 0; a.status = 'idle'; });
-  renderRoster();
-  renderTimeline(activeFilter);
-  document.getElementById('tbMeta').innerHTML = `<span style="color:var(--g-green)">Live Trace Active</span> · 0 events`;
-  const dp = document.getElementById('detailPanel');
-  const existing = dp.querySelector('.dp-content');
-  if(existing) existing.remove();
-  const empty = document.getElementById('dpEmpty');
-  if(empty) empty.style.display = 'flex';
-}
-
 // ── Top bar buttons ──
 function exportTrace() {
   const btn = event.target.closest('button');
@@ -1106,68 +1100,6 @@ renderRoster();
 renderHandoffFlow();
 renderLaneHeaders();
 renderTimeline('all');
-
-// ── Live EventSource ──
-function setupLiveTrace() {
-  const es = new EventSource('/thought-trace/stream');
-  es.addEventListener('thought', (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      
-      let evType = 'task';
-      const tt = (data.thought_type || '').toLowerCase();
-      if (tt === 'thought' || tt === 'thinking') evType = 'decision';
-      else if (tt === 'finding' || tt === 'result') evType = 'output';
-      else if (tt === 'alert' || tt === 'error') evType = 'error';
-
-      const temp = document.createElement('div');
-      temp.innerHTML = data.message || 'Processing...';
-      const cleanMsg = temp.textContent || temp.innerText || '';
-
-      const agentId = (data.agent || 'orchestrator').toLowerCase();
-      if (!agentMap[agentId]) {
-        const newAgent = { 
-          id: agentId, name: data.role || agentId, role: 'Dynamic Agent', 
-          icon: '🤖', color: '#1a73e8', rgb: '26,115,232', iconBg: '#e8f0fe', 
-          status: 'running', tasks: 0, tokens: 0, duration: 'live', load: 50 
-        };
-        AGENTS.push(newAgent);
-        agentMap[agentId] = newAgent;
-        LANE_AGENTS.push(agentId);
-        renderLaneHeaders();
-      }
-
-      const newEv = {
-        id: 'live-' + Date.now() + Math.floor(Math.random()*1000),
-        time: timeStr, agent: agentId, type: evType,
-        title: data.role ? `${data.role} Activity` : 'Agent Activity',
-        detail: cleanMsg, tags: ['live', tt || 'update'],
-        filter: evType === 'decision' ? 'decision' : (evType === 'output' ? 'output' : 'all'),
-        reasoning: [cleanMsg], input: '-', output: '-'
-      };
-
-      EVENTS.push(newEv);
-      
-      const agentObj = agentMap[agentId];
-      if (agentObj) {
-        agentObj.tasks = (agentObj.tasks || 0) + 1;
-        agentObj.status = 'running';
-        renderRoster();
-      }
-
-      if (agentFilter && agentFilter === newEv.agent) renderFilteredEvents(EVENTS.filter(ev => ev.agent === agentFilter));
-      else renderTimeline(activeFilter);
-
-      const scrollEl = document.getElementById('tlScroll');
-      if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
-      
-      document.getElementById('tbMeta').innerHTML = `<span style="color:var(--g-green)">Live Trace Active</span> · ${EVENTS.length} events`;
-    } catch (err) { console.error('Error parsing live thought:', err); }
-  });
-}
-setupLiveTrace();
 
 // Auto-select first event
 setTimeout(()=>{
