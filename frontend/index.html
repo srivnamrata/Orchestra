@@ -1866,6 +1866,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
             <button class="intel-tab" onclick="switchIntel('research',this)">🔬 Research <span class="intel-tab-count">4</span></button>
             <button class="intel-tab" onclick="switchIntel('tasks',this)">✅ Tasks <span class="intel-tab-count">6</span></button>
             <button class="intel-tab" onclick="switchIntel('schedule',this)">📅 Schedule <span class="intel-tab-count">4</span></button>
+            <button class="intel-tab" onclick="switchIntel('guru',this)">🧘 Param Mitra <span class="intel-tab-count">!</span></button>
           </div>
         </div>
         <div class="intel-head-right">
@@ -1913,6 +1914,16 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
             <div class="sched-item now"><div class="sched-time">14:00</div><div><div class="sched-name">API Documentation review</div><div class="sched-detail">30 min · Google Meet · 3 attendees</div></div><span class="sched-tag" style="background:var(--g-green-light);color:var(--g-green);border:1px solid rgba(30,142,62,0.3)">● Now</span></div>
             <div class="sched-item"><div class="sched-time">15:30</div><div><div class="sched-name">UI Redesign kickoff — Product &amp; Eng</div><div class="sched-detail">60 min · Google Meet · 8 attendees</div></div><span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span></div>
             <div class="sched-item"><div class="sched-time">17:00</div><div><div class="sched-name">1:1 — Q2 planning</div><div class="sched-detail">30 min · In-person</div></div><span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span></div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-guru">
+          <div class="intel-source-label">Param Mitra · Holistic AI Guru</div>
+          <div id="guru-audit-container">
+            <div style="text-align:center;padding:40px;color:var(--md-dim);font-size:13px">
+              <span class="ms" style="font-size:32px;display:block;margin-bottom:10px;color:var(--g-amber)">self_improvement</span>
+              Param Mitra is ready to read your week. <br><br><button class="intel-btn primary" onclick="runGuruAudit()">Analyze</button>
+            </div>
           </div>
         </div>
 
