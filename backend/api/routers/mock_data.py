@@ -112,3 +112,38 @@ async def get_mock_events():
             },
         ],
     }
+
+
+@router.get("/api/mock/bottlenecks")
+async def get_mock_bottlenecks():
+    return {
+        "bottlenecks": [
+            {
+                "id": "bn-1",
+                "source": "github",
+                "icon_class": "fa-brands fa-github",
+                "icon_color": "#e0e0e0",
+                "title": "PR #42 — API rate limiter",
+                "detail": "2 failing checks: <span style='color:var(--g-red); font-family:var(--font-mono); font-size:11px;'>unit-tests</span>, <span style='color:var(--g-red); font-family:var(--font-mono); font-size:11px;'>lint</span>",
+                "action_text": "Review & unblock"
+            },
+            {
+                "id": "bn-2",
+                "source": "slack",
+                "icon_class": "fa-brands fa-slack",
+                "icon_color": "#e01e5a",
+                "title": "@you in #backend",
+                "detail": "Can you unblock the <span style='color:var(--g-amber); font-weight:600;'>deploy pipeline</span>?",
+                "action_text": "Review & unblock"
+            },
+            {
+                "id": "bn-3",
+                "source": "email",
+                "icon_class": "fa-solid fa-envelope",
+                "icon_color": "#4285f4",
+                "title": "Re: Product launch sign-off",
+                "detail": "Awaiting approval — <span style='color:var(--g-red); font-weight:600;'>2 days overdue</span>",
+                "action_text": "Review & reply"
+            }
+        ]
+    }

@@ -1574,15 +1574,26 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
 
     <!-- Unified Stats & Reasoning Bar -->
     <div class="unified-stats-bar anim a2">
-      <!-- Left: Analytics -->
+      <!-- Left: Intelligence -->
+      <div class="usb-reasoning intel-toggle-btn" onclick="toggleIntelOverlay(event)" style="border-radius: var(--radius-xl) 0 0 var(--radius-xl);">
+        <div style="display:flex; align-items:center;">
+          <div class="usb-r-icon">
+            <span class="ms" style="color:white; font-size:22px;">hub</span>
+          </div>
+          <div class="usb-r-text">
+            <div class="usb-r-title">Intelligence</div>
+            <div class="usb-r-sub">News, Research & Tasks</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="usb-divider"></div>
+
+      <!-- Middle: Analytics -->
       <div class="usb-analytics">
         <div class="usb-stat" onclick="window.location.href='/analytics'">
           <div class="usb-num">247</div>
           <div class="usb-lbl">Tasks Completed</div>
-        </div>
-        <div class="usb-stat" onclick="window.location.href='/analytics'">
-          <div class="usb-num">98%</div>
-          <div class="usb-lbl">Safety Score</div>
         </div>
         <div class="usb-stat" onclick="window.location.href='/analytics'">
           <div class="usb-num">83h</div>
@@ -1593,13 +1604,13 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
       <div class="usb-divider"></div>
 
       <!-- Right: Active Workflow & Agent Reasoning -->
-      <div class="usb-reasoning" onclick="window.location.href='/trace'">
+      <div class="usb-reasoning" onclick="window.location.href='/trace'" style="border-radius: 0 var(--radius-xl) var(--radius-xl) 0;">
         <div style="display:flex; align-items:center;">
           <div class="usb-r-icon">
             <span class="ms" style="color:white; font-size:22px;">psychology</span>
           </div>
           <div class="usb-r-text">
-            <div class="usb-r-title"><span id="active-count">3</span> Active Workflows</div>
+            <div class="usb-r-title"><span id="active-count">3</span> Agent Thought Trace</div>
             <div class="usb-r-sub">Click to view real-time Agent Reasoning</div>
           </div>
         </div>
@@ -1613,8 +1624,10 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
       <!-- Left col -->
       <div class="runs-col">
 
-        <!-- Smart Activity Feed -->
-        <div class="feed-card">
+        <!-- Smart Activity Feed Container -->
+        <div class="feed-container" style="position: relative;">
+          <!-- Smart Activity Feed -->
+          <div class="feed-card" id="feed-card">
           <div class="feed-head">
             <div style="display:flex;align-items:center;gap:12px">
               <div class="feed-title">📡 Smart Activity Feed</div>
@@ -1628,6 +1641,95 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
             <div class="feed-hint">Click any entry to explain reasoning</div>
           </div>
           <div class="feed-body" id="feed"></div>
+        </div>
+    <!-- Intelligence Panel -->
+    <div class="intel-panel" id="intel-panel" style="position: absolute; top: 0; left: 0; right: 0; display: none; z-index: 20; box-shadow: var(--shadow-3);">
+      <div class="intel-head">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="intel-title">🧩 Intelligence</div>
+          <div class="intel-tabs">
+            <button class="intel-tab active" onclick="switchIntel('news',this)">📰 News <span class="intel-tab-count">3</span></button>
+            <button class="intel-tab" onclick="switchIntel('research',this)">🔬 Research <span class="intel-tab-count">4</span></button>
+            <button class="intel-tab" onclick="switchIntel('tasks',this)">✅ Tasks <span class="intel-tab-count">6</span></button>
+            <button class="intel-tab" onclick="switchIntel('schedule',this)">📅 Schedule <span class="intel-tab-count">4</span></button>
+            <button class="intel-tab" onclick="switchIntel('guru',this)">🧘 Param Mitra <span class="intel-tab-count">!</span></button>
+            <button class="intel-tab" onclick="switchIntel('veda',this)">📚 Veda Library</button>
+          </div>
+        </div>
+        <div class="intel-head-right">
+          <button class="intel-btn" onclick="playAudio()"><span class="ms sm">headphones</span> Audio Summary</button>
+          <button class="intel-btn primary" onclick="fetchIntel()"><span class="ms sm">refresh</span> Fetch Latest</button>
+        </div>
+      </div>
+      <div class="intel-body">
+
+        <div class="intel-pane active" id="pane-news">
+          <div class="intel-source-label">Hacker News · 25 Apr 2026</div>
+          <div class="news-grid">
+            <div class="news-card nc-hn"><div class="news-source-row"><div class="news-favicon" style="background:#ff6600;color:white">Y</div><span class="news-source-name">Hacker News</span><span class="news-date">25 Apr</span></div><div class="news-title">There Will Be a Scientific Theory of Deep Learning</div><div class="news-meta"><span class="news-score">▲ 18</span><span class="news-score">💬 1</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
+            <div class="news-card nc-hn"><div class="news-source-row"><div class="news-favicon" style="background:#ff6600;color:white">Y</div><span class="news-source-name">Hacker News</span><span class="news-date">25 Apr</span></div><div class="news-title">Machine Learning Reveals Unknown Transient Phenomena in Historic Images</div><div class="news-meta"><span class="news-score">▲ 43</span><span class="news-score">💬 34</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
+            <div class="news-card nc-hn"><div class="news-source-row"><div class="news-favicon" style="background:#ff6600;color:white">Y</div><span class="news-source-name">Hacker News</span><span class="news-date">25 Apr</span></div><div class="news-title">OpenAI's o3 Scores 136.4 on Humanity's Last Exam — Experts Divided</div><div class="news-meta"><span class="news-score">▲ 312</span><span class="news-score">💬 148</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-research">
+          <div class="intel-source-label">arXiv · Latest Papers</div>
+          <div class="news-grid" style="grid-template-columns:repeat(4,1fr)">
+            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.AI</span><span class="news-date">25 Apr</span></div><div class="news-title">Scaling Laws for Reward Model Overoptimization in RLHF</div><div class="news-meta"><span class="news-score" style="color:var(--g-blue)">★ Highly cited</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
+            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.LG</span><span class="news-date">24 Apr</span></div><div class="news-title">Beyond Attention: State Space Models as Universal Sequence Processors</div><div class="news-meta"><span class="news-score" style="color:var(--g-blue)">★ New</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
+            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.CL</span><span class="news-date">24 Apr</span></div><div class="news-title">Multi-Agent Debate Improves Factuality in LLM Outputs</div><div class="news-meta"><span class="news-score" style="color:var(--g-green)">★ Relevant</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
+            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.MA</span><span class="news-date">23 Apr</span></div><div class="news-title">Orchestra: Coordinated Multi-Agent Systems for Long-Horizon Tasks</div><div class="news-meta"><span class="news-score" style="color:var(--g-amber)">★ Pinned</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-tasks">
+          <div class="intel-source-label">Your Tasks · 6 items</div>
+          <div class="task-intel-grid">
+            <div class="task-intel-item"><div class="ti-check done">✓</div><div><div class="ti-title done-text">Write Database Schema Documentation</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-green-light);color:var(--g-green)">done</span><span class="ti-due">2h ago</span></div></div></div>
+            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Review API Documentation draft</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-amber-light);color:var(--g-amber)">high</span><span class="ti-due">Due today</span></div></div></div>
+            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Approve UI Redesign component list</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-blue-light);color:var(--g-blue)">medium</span><span class="ti-due">Due tomorrow</span></div></div></div>
+            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Schedule Q2 board review meeting</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-red-light);color:var(--g-red)">critical</span><span class="ti-due">Overdue 1d</span></div></div></div>
+            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Review Critic Replan suggestions</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-amber-light);color:var(--g-amber)">high</span><span class="ti-due">This week</span></div></div></div>
+            <div class="task-intel-item"><div class="ti-check done">✓</div><div><div class="ti-title done-text">Research SaaS pricing benchmarks</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-green-light);color:var(--g-green)">done</span><span class="ti-due">Yesterday</span></div></div></div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-schedule">
+          <div class="intel-source-label">Today · Saturday 25 Apr 2026</div>
+          <div class="schedule-grid">
+            <div class="sched-item"><div class="sched-time">09:00</div><div><div class="sched-name">Morning standup — Engineering</div><div class="sched-detail">15 min · Zoom · 6 attendees</div></div><span class="sched-tag" style="background:var(--g-green-light);color:var(--g-green)">✓ Done</span></div>
+            <div class="sched-item now"><div class="sched-time">14:00</div><div><div class="sched-name">API Documentation review</div><div class="sched-detail">30 min · Google Meet · 3 attendees</div></div><span class="sched-tag" style="background:var(--g-green-light);color:var(--g-green);border:1px solid rgba(30,142,62,0.3)">● Now</span></div>
+            <div class="sched-item"><div class="sched-time">15:30</div><div><div class="sched-name">UI Redesign kickoff — Product &amp; Eng</div><div class="sched-detail">60 min · Google Meet · 8 attendees</div></div><span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span></div>
+            <div class="sched-item"><div class="sched-time">17:00</div><div><div class="sched-name">1:1 — Q2 planning</div><div class="sched-detail">30 min · In-person</div></div><span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span></div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-guru">
+          <div class="intel-source-label">Param Mitra · Holistic AI Guru</div>
+          <div id="guru-audit-container">
+            <div style="text-align:center;padding:40px;color:var(--md-dim);font-size:13px">
+              <span class="ms" style="font-size:32px;display:block;margin-bottom:10px;color:var(--g-amber)">self_improvement</span>
+              Param Mitra is ready to read your week. <br><br><button class="intel-btn primary" onclick="runGuruAudit()">Analyze</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="intel-pane" id="pane-veda">
+          <div class="intel-source-label" style="display:flex;justify-content:space-between;align-items:center">
+             <span>Veda Library · Reading List</span>
+             <button class="intel-btn" onclick="fetchBooks()"><span class="ms sm">refresh</span></button>
+          </div>
+          <div style="padding:10px 14px">
+              <input type="text" id="veda-input" placeholder="Talk to Veda: 'Add Atomic Habits' or 'Log 20 pages...'" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--md-border);color:white;padding:10px 14px;border-radius:10px;font-size:13px;outline:none" onkeydown="if(event.key==='Enter') submitVeda(this.value)">
+          </div>
+          <div id="bookshelf" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;padding:0 14px 14px">
+              <!-- Books will render here -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+
         </div>
 
         <!-- Completed -->
@@ -1727,20 +1829,10 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
               <div class="bn-sub">Issues agents found proactively — without you asking.</div>
             </div>
             <div id="bnList">
-              <div class="bn-item bn-github" id="bn1">
-                <div class="bn-item-head"><div class="bn-source-tag bn-tag-github">🐙 GITHUB</div><button class="bn-dismiss" onclick="dismissBn('bn1')"><span class="ms sm">close</span></button></div>
-                <div><div class="bn-item-title">PR #42 — API rate limiter</div><div class="bn-item-desc">2 failing checks: <span class="bn-hl red">unit-tests</span>, <span class="bn-hl red">lint</span></div></div>
-                <button class="bn-action" onclick="reviewBn(this,'github')">Review &amp; unblock →</button>
-              </div>
-              <div class="bn-item bn-slack" id="bn2">
-                <div class="bn-item-head"><div class="bn-source-tag bn-tag-slack">💬 SLACK</div><button class="bn-dismiss" onclick="dismissBn('bn2')"><span class="ms sm">close</span></button></div>
-                <div><div class="bn-item-title">@you in #backend</div><div class="bn-item-desc">Can you unblock the <span class="bn-hl amber">deploy pipeline</span>?</div></div>
-                <button class="bn-action" onclick="reviewBn(this,'slack')">Review &amp; unblock →</button>
-              </div>
-              <div class="bn-item bn-email" id="bn3">
-                <div class="bn-item-head"><div class="bn-source-tag bn-tag-email">📧 EMAIL</div><button class="bn-dismiss" onclick="dismissBn('bn3')"><span class="ms sm">close</span></button></div>
-                <div><div class="bn-item-title">Re: Product launch sign-off</div><div class="bn-item-desc">Awaiting approval — <span class="bn-hl red">2 days overdue</span></div></div>
-                <button class="bn-action" onclick="reviewBn(this,'email')">Review &amp; reply →</button>
+              <!-- Dynamically populated by app.js fetchBottlenecks() -->
+              <div style="padding: 24px; text-align: center; color: var(--md-muted); font-size: 13px;">
+                <span class="ms" style="font-size: 18px; margin-bottom: 8px; display: block; animation: spin 2s linear infinite;">sync</span>
+                Scanning for bottlenecks...
               </div>
             </div>
           </div>
@@ -1749,93 +1841,6 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
       </div>
     </div>
 
-    <!-- Intelligence Panel -->
-    <div class="intel-panel anim a6">
-      <div class="intel-head">
-        <div style="display:flex;align-items:center;gap:14px">
-          <div class="intel-title">🧩 Intelligence</div>
-          <div class="intel-tabs">
-            <button class="intel-tab active" onclick="switchIntel('news',this)">📰 News <span class="intel-tab-count">3</span></button>
-            <button class="intel-tab" onclick="switchIntel('research',this)">🔬 Research <span class="intel-tab-count">4</span></button>
-            <button class="intel-tab" onclick="switchIntel('tasks',this)">✅ Tasks <span class="intel-tab-count">6</span></button>
-            <button class="intel-tab" onclick="switchIntel('schedule',this)">📅 Schedule <span class="intel-tab-count">4</span></button>
-            <button class="intel-tab" onclick="switchIntel('guru',this)">🧘 Param Mitra <span class="intel-tab-count">!</span></button>
-            <button class="intel-tab" onclick="switchIntel('veda',this)">📚 Veda Library</button>
-          </div>
-        </div>
-        <div class="intel-head-right">
-          <button class="intel-btn" onclick="playAudio()"><span class="ms sm">headphones</span> Audio Summary</button>
-          <button class="intel-btn primary" onclick="fetchIntel()"><span class="ms sm">refresh</span> Fetch Latest</button>
-        </div>
-      </div>
-      <div class="intel-body">
-
-        <div class="intel-pane active" id="pane-news">
-          <div class="intel-source-label">Hacker News · 25 Apr 2026</div>
-          <div class="news-grid">
-            <div class="news-card nc-hn"><div class="news-source-row"><div class="news-favicon" style="background:#ff6600;color:white">Y</div><span class="news-source-name">Hacker News</span><span class="news-date">25 Apr</span></div><div class="news-title">There Will Be a Scientific Theory of Deep Learning</div><div class="news-meta"><span class="news-score">▲ 18</span><span class="news-score">💬 1</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-            <div class="news-card nc-hn"><div class="news-source-row"><div class="news-favicon" style="background:#ff6600;color:white">Y</div><span class="news-source-name">Hacker News</span><span class="news-date">25 Apr</span></div><div class="news-title">Machine Learning Reveals Unknown Transient Phenomena in Historic Images</div><div class="news-meta"><span class="news-score">▲ 43</span><span class="news-score">💬 34</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-            <div class="news-card nc-hn"><div class="news-source-row"><div class="news-favicon" style="background:#ff6600;color:white">Y</div><span class="news-source-name">Hacker News</span><span class="news-date">25 Apr</span></div><div class="news-title">OpenAI's o3 Scores 136.4 on Humanity's Last Exam — Experts Divided</div><div class="news-meta"><span class="news-score">▲ 312</span><span class="news-score">💬 148</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-research">
-          <div class="intel-source-label">arXiv · Latest Papers</div>
-          <div class="news-grid" style="grid-template-columns:repeat(4,1fr)">
-            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.AI</span><span class="news-date">25 Apr</span></div><div class="news-title">Scaling Laws for Reward Model Overoptimization in RLHF</div><div class="news-meta"><span class="news-score" style="color:var(--g-blue)">★ Highly cited</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.LG</span><span class="news-date">24 Apr</span></div><div class="news-title">Beyond Attention: State Space Models as Universal Sequence Processors</div><div class="news-meta"><span class="news-score" style="color:var(--g-blue)">★ New</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.CL</span><span class="news-date">24 Apr</span></div><div class="news-title">Multi-Agent Debate Improves Factuality in LLM Outputs</div><div class="news-meta"><span class="news-score" style="color:var(--g-green)">★ Relevant</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-            <div class="news-card nc-arxiv"><div class="news-source-row"><div class="news-favicon" style="background:var(--g-blue);color:white;font-size:8px;font-weight:800">aX</div><span class="news-source-name">cs.MA</span><span class="news-date">23 Apr</span></div><div class="news-title">Orchestra: Coordinated Multi-Agent Systems for Long-Horizon Tasks</div><div class="news-meta"><span class="news-score" style="color:var(--g-amber)">★ Pinned</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-tasks">
-          <div class="intel-source-label">Your Tasks · 6 items</div>
-          <div class="task-intel-grid">
-            <div class="task-intel-item"><div class="ti-check done">✓</div><div><div class="ti-title done-text">Write Database Schema Documentation</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-green-light);color:var(--g-green)">done</span><span class="ti-due">2h ago</span></div></div></div>
-            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Review API Documentation draft</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-amber-light);color:var(--g-amber)">high</span><span class="ti-due">Due today</span></div></div></div>
-            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Approve UI Redesign component list</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-blue-light);color:var(--g-blue)">medium</span><span class="ti-due">Due tomorrow</span></div></div></div>
-            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Schedule Q2 board review meeting</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-red-light);color:var(--g-red)">critical</span><span class="ti-due">Overdue 1d</span></div></div></div>
-            <div class="task-intel-item"><div class="ti-check"></div><div><div class="ti-title">Review Critic Replan suggestions</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-amber-light);color:var(--g-amber)">high</span><span class="ti-due">This week</span></div></div></div>
-            <div class="task-intel-item"><div class="ti-check done">✓</div><div><div class="ti-title done-text">Research SaaS pricing benchmarks</div><div style="display:flex;gap:6px;margin-top:4px"><span class="ti-priority" style="background:var(--g-green-light);color:var(--g-green)">done</span><span class="ti-due">Yesterday</span></div></div></div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-schedule">
-          <div class="intel-source-label">Today · Saturday 25 Apr 2026</div>
-          <div class="schedule-grid">
-            <div class="sched-item"><div class="sched-time">09:00</div><div><div class="sched-name">Morning standup — Engineering</div><div class="sched-detail">15 min · Zoom · 6 attendees</div></div><span class="sched-tag" style="background:var(--g-green-light);color:var(--g-green)">✓ Done</span></div>
-            <div class="sched-item now"><div class="sched-time">14:00</div><div><div class="sched-name">API Documentation review</div><div class="sched-detail">30 min · Google Meet · 3 attendees</div></div><span class="sched-tag" style="background:var(--g-green-light);color:var(--g-green);border:1px solid rgba(30,142,62,0.3)">● Now</span></div>
-            <div class="sched-item"><div class="sched-time">15:30</div><div><div class="sched-name">UI Redesign kickoff — Product &amp; Eng</div><div class="sched-detail">60 min · Google Meet · 8 attendees</div></div><span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span></div>
-            <div class="sched-item"><div class="sched-time">17:00</div><div><div class="sched-name">1:1 — Q2 planning</div><div class="sched-detail">30 min · In-person</div></div><span class="sched-tag" style="background:var(--g-blue-light);color:var(--g-blue)">Upcoming</span></div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-guru">
-          <div class="intel-source-label">Param Mitra · Holistic AI Guru</div>
-          <div id="guru-audit-container">
-            <div style="text-align:center;padding:40px;color:var(--md-dim);font-size:13px">
-              <span class="ms" style="font-size:32px;display:block;margin-bottom:10px;color:var(--g-amber)">self_improvement</span>
-              Param Mitra is ready to read your week. <br><br><button class="intel-btn primary" onclick="runGuruAudit()">Analyze</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="intel-pane" id="pane-veda">
-          <div class="intel-source-label" style="display:flex;justify-content:space-between;align-items:center">
-             <span>Veda Library · Reading List</span>
-             <button class="intel-btn" onclick="fetchBooks()"><span class="ms sm">refresh</span></button>
-          </div>
-          <div style="padding:10px 14px">
-              <input type="text" id="veda-input" placeholder="Talk to Veda: 'Add Atomic Habits' or 'Log 20 pages...'" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--md-border);color:white;padding:10px 14px;border-radius:10px;font-size:13px;outline:none" onkeydown="if(event.key==='Enter') submitVeda(this.value)">
-          </div>
-          <div id="bookshelf" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;padding:0 14px 14px">
-              <!-- Books will render here -->
-          </div>
-        </div>
-
-      </div>
-    </div>
 
   </div>
 </main>
@@ -2248,6 +2253,40 @@ document.addEventListener('keydown',e=>{
   if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();openPalette();}
   if(e.key==='Escape'){if(paletteOpen)closePalette();if(notifOpen)toggleNotifs();}
 });
+
+// ── Intelligence Overlay Logic ──
+function toggleIntelOverlay(e) {
+  if (e) e.stopPropagation();
+  const intelPanel = document.getElementById('intel-panel');
+  const feedCard = document.getElementById('feed-card');
+  if (intelPanel.classList.contains('overlay-active')) {
+    intelPanel.classList.remove('overlay-active');
+    intelPanel.style.display = 'none';
+    intelPanel.style.position = 'absolute';
+    feedCard.style.display = 'block';
+  } else {
+    intelPanel.classList.add('overlay-active');
+    intelPanel.style.display = 'block';
+    intelPanel.style.position = 'relative'; // Push content down instead of absolute overlay
+    feedCard.style.display = 'none';
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const intelPanel = document.getElementById('intel-panel');
+  const toggleBtns = document.querySelectorAll('.intel-toggle-btn');
+  
+  if (intelPanel && intelPanel.classList.contains('overlay-active')) {
+    let isToggleClick = false;
+    toggleBtns.forEach(btn => {
+      if (btn.contains(e.target)) isToggleClick = true;
+    });
+    
+    if (!intelPanel.contains(e.target) && !isToggleClick) {
+      toggleIntelOverlay();
+    }
+  }
+});
 </script>
 
 <!-- ══════════════════════════════════════
@@ -2571,6 +2610,40 @@ function paletteKeydown(e) {
     if(paletteFiltered[paletteSelected]) paletteFiltered[paletteSelected].action();
   }
 }
+
+// ── Intelligence Overlay Logic ──
+function toggleIntelOverlay(e) {
+  if (e) e.stopPropagation();
+  const intelPanel = document.getElementById('intel-panel');
+  const feedCard = document.getElementById('feed-card');
+  if (intelPanel.classList.contains('overlay-active')) {
+    intelPanel.classList.remove('overlay-active');
+    intelPanel.style.display = 'none';
+    intelPanel.style.position = 'absolute';
+    feedCard.style.display = 'block';
+  } else {
+    intelPanel.classList.add('overlay-active');
+    intelPanel.style.display = 'block';
+    intelPanel.style.position = 'relative'; // Push content down instead of absolute overlay
+    feedCard.style.display = 'none';
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const intelPanel = document.getElementById('intel-panel');
+  const toggleBtns = document.querySelectorAll('.intel-toggle-btn');
+  
+  if (intelPanel && intelPanel.classList.contains('overlay-active')) {
+    let isToggleClick = false;
+    toggleBtns.forEach(btn => {
+      if (btn.contains(e.target)) isToggleClick = true;
+    });
+    
+    if (!intelPanel.contains(e.target) && !isToggleClick) {
+      toggleIntelOverlay();
+    }
+  }
+});
 </script>
 
 <!-- ══ NOTIFICATION PANEL ══ -->
@@ -2863,6 +2936,40 @@ setInterval(() => {
     }, 600);
   }
 }, 500);
+
+// ── Intelligence Overlay Logic ──
+function toggleIntelOverlay(e) {
+  if (e) e.stopPropagation();
+  const intelPanel = document.getElementById('intel-panel');
+  const feedCard = document.getElementById('feed-card');
+  if (intelPanel.classList.contains('overlay-active')) {
+    intelPanel.classList.remove('overlay-active');
+    intelPanel.style.display = 'none';
+    intelPanel.style.position = 'absolute';
+    feedCard.style.display = 'block';
+  } else {
+    intelPanel.classList.add('overlay-active');
+    intelPanel.style.display = 'block';
+    intelPanel.style.position = 'relative'; // Push content down instead of absolute overlay
+    feedCard.style.display = 'none';
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const intelPanel = document.getElementById('intel-panel');
+  const toggleBtns = document.querySelectorAll('.intel-toggle-btn');
+  
+  if (intelPanel && intelPanel.classList.contains('overlay-active')) {
+    let isToggleClick = false;
+    toggleBtns.forEach(btn => {
+      if (btn.contains(e.target)) isToggleClick = true;
+    });
+    
+    if (!intelPanel.contains(e.target) && !isToggleClick) {
+      toggleIntelOverlay();
+    }
+  }
+});
 </script>
 
 <!-- ══════════════════════════════════════
@@ -3215,6 +3322,40 @@ function finishOnboard() {
     }, 600);
   }
 })();
+
+// ── Intelligence Overlay Logic ──
+function toggleIntelOverlay(e) {
+  if (e) e.stopPropagation();
+  const intelPanel = document.getElementById('intel-panel');
+  const feedCard = document.getElementById('feed-card');
+  if (intelPanel.classList.contains('overlay-active')) {
+    intelPanel.classList.remove('overlay-active');
+    intelPanel.style.display = 'none';
+    intelPanel.style.position = 'absolute';
+    feedCard.style.display = 'block';
+  } else {
+    intelPanel.classList.add('overlay-active');
+    intelPanel.style.display = 'block';
+    intelPanel.style.position = 'relative'; // Push content down instead of absolute overlay
+    feedCard.style.display = 'none';
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const intelPanel = document.getElementById('intel-panel');
+  const toggleBtns = document.querySelectorAll('.intel-toggle-btn');
+  
+  if (intelPanel && intelPanel.classList.contains('overlay-active')) {
+    let isToggleClick = false;
+    toggleBtns.forEach(btn => {
+      if (btn.contains(e.target)) isToggleClick = true;
+    });
+    
+    if (!intelPanel.contains(e.target) && !isToggleClick) {
+      toggleIntelOverlay();
+    }
+  }
+});
 </script>
 
 <script>
@@ -3285,6 +3426,40 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     checkBottlenecksEmpty();
   }, 100);
+});
+
+// ── Intelligence Overlay Logic ──
+function toggleIntelOverlay(e) {
+  if (e) e.stopPropagation();
+  const intelPanel = document.getElementById('intel-panel');
+  const feedCard = document.getElementById('feed-card');
+  if (intelPanel.classList.contains('overlay-active')) {
+    intelPanel.classList.remove('overlay-active');
+    intelPanel.style.display = 'none';
+    intelPanel.style.position = 'absolute';
+    feedCard.style.display = 'block';
+  } else {
+    intelPanel.classList.add('overlay-active');
+    intelPanel.style.display = 'block';
+    intelPanel.style.position = 'relative'; // Push content down instead of absolute overlay
+    feedCard.style.display = 'none';
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const intelPanel = document.getElementById('intel-panel');
+  const toggleBtns = document.querySelectorAll('.intel-toggle-btn');
+  
+  if (intelPanel && intelPanel.classList.contains('overlay-active')) {
+    let isToggleClick = false;
+    toggleBtns.forEach(btn => {
+      if (btn.contains(e.target)) isToggleClick = true;
+    });
+    
+    if (!intelPanel.contains(e.target) && !isToggleClick) {
+      toggleIntelOverlay();
+    }
+  }
 });
 </script>
 
@@ -3842,6 +4017,40 @@ function mobilNav(section, btn) {
   const el = document.querySelector(map[section]);
   if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
 }
+
+// ── Intelligence Overlay Logic ──
+function toggleIntelOverlay(e) {
+  if (e) e.stopPropagation();
+  const intelPanel = document.getElementById('intel-panel');
+  const feedCard = document.getElementById('feed-card');
+  if (intelPanel.classList.contains('overlay-active')) {
+    intelPanel.classList.remove('overlay-active');
+    intelPanel.style.display = 'none';
+    intelPanel.style.position = 'absolute';
+    feedCard.style.display = 'block';
+  } else {
+    intelPanel.classList.add('overlay-active');
+    intelPanel.style.display = 'block';
+    intelPanel.style.position = 'relative'; // Push content down instead of absolute overlay
+    feedCard.style.display = 'none';
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const intelPanel = document.getElementById('intel-panel');
+  const toggleBtns = document.querySelectorAll('.intel-toggle-btn');
+  
+  if (intelPanel && intelPanel.classList.contains('overlay-active')) {
+    let isToggleClick = false;
+    toggleBtns.forEach(btn => {
+      if (btn.contains(e.target)) isToggleClick = true;
+    });
+    
+    if (!intelPanel.contains(e.target) && !isToggleClick) {
+      toggleIntelOverlay();
+    }
+  }
+});
 </script>
 
 <!-- ══════════════════════════════════════

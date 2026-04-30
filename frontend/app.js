@@ -1,4 +1,68 @@
 // ============================================================================
+// DYNAMIC BOTTLENECKS
+// ============================================================================
+
+async function fetchBottlenecks() {
+    const listEl = document.getElementById('bnList');
+    if (!listEl) return;
+    
+    try {
+        const response = await fetch('/api/mock/bottlenecks');
+        if (!response.ok) throw new Error('Network response was not ok');
+        
+        const data = await response.json();
+        
+        if (!data.bottlenecks || data.bottlenecks.length === 0) {
+            listEl.innerHTML = `
+                <div style="padding: 24px; text-align: center; color: var(--md-muted); font-size: 13px;">
+                    <span class="ms" style="font-size: 24px; margin-bottom: 8px; display: block; color: var(--g-green);">check_circle</span>
+                    All clear! No bottlenecks detected.
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        data.bottlenecks.forEach(bn => {
+            const sourceUpper = bn.source.toUpperCase();
+            
+            // Map the source to proper emoji/class if not using icons
+            let iconStr = '🚨';
+            if (bn.source === 'github') iconStr = '🐙';
+            if (bn.source === 'slack') iconStr = '💬';
+            if (bn.source === 'email') iconStr = '📧';
+
+            html += `
+              <div class="bn-item bn-${bn.source}" id="${bn.id}">
+                <div class="bn-item-head">
+                  <div class="bn-source-tag bn-tag-${bn.source}">${iconStr} ${sourceUpper}</div>
+                  <button class="bn-dismiss" onclick="dismissBn('${bn.id}')"><span class="ms sm">close</span></button>
+                </div>
+                <div>
+                  <div class="bn-item-title">${bn.title}</div>
+                  <div class="bn-item-desc">${bn.detail}</div>
+                </div>
+                <button class="bn-action" onclick="reviewBn(this,'${bn.source}')">${bn.action_text} →</button>
+              </div>
+            `;
+        });
+        
+        listEl.innerHTML = html;
+        
+    } catch (err) {
+        console.error('Failed to fetch bottlenecks:', err);
+        listEl.innerHTML = `
+            <div style="padding: 24px; text-align: center; color: var(--md-muted); font-size: 13px;">
+                <span class="ms" style="font-size: 18px; margin-bottom: 8px; display: block; color: var(--g-red);">error</span>
+                Could not load bottlenecks.
+            </div>
+        `;
+    }
+}
+
+
+
+// ============================================================================
 // COMMAND PALETTE SYSTEM
 // ============================================================================
 
@@ -469,6 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('⚙️ Init stage 5: Fetch health status');
         // 5. Fetch Health Status (non-blocking)
         fetchHealthStatus();
+        fetchBottlenecks();
     }, 100);
 
     setTimeout(() => {
