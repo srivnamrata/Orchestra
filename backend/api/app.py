@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.api import state
 from backend.api.routers import (
     agents, books, debate, demo, events, guru,
-    integrations, mock_data, notes, tasks, workflows, trace,
+    integrations, mock_data, notes, tasks, workflows, trace, analytics
 )
 from backend.auth.router import router as auth_router
 from backend.config import get_config
@@ -177,6 +177,13 @@ def create_app() -> FastAPI:
             return FileResponse(login_path)
         return {"message": "Login page not found."}
 
+    @app.get("/analytics", include_in_schema=False)
+    async def serve_analytics():
+        analytics_path = os.path.join(FRONTEND_DIR, "analytics.html")
+        if os.path.exists(analytics_path):
+            return FileResponse(analytics_path)
+        return {"message": "Analytics dashboard not found. Ensure frontend folder exists."}
+
     # ── Routers ───────────────────────────────────────────────────────────
     for router in [
         auth_router,
@@ -192,6 +199,7 @@ def create_app() -> FastAPI:
         mock_data.router,
         integrations.router,
         trace.router,
+        analytics.router,
     ]:
         app.include_router(router)
 

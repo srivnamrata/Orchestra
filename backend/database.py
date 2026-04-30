@@ -112,6 +112,26 @@ class User(Base):
     created_at    = Column(DateTime,    default=datetime.utcnow, index=True)
 
 
+class EventAnalysis(Base):
+    __tablename__ = "event_analysis"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(String(100), ForeignKey("calendar_events.event_id"))
+    vibe_score = Column(Float)
+    risk_level = Column(String(20))
+    action_items = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class MetricRecord(Base):
+    __tablename__ = "metric_records"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    metric_name = Column(String(50), index=True)
+    value = Column(Float)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    category = Column(String(50), nullable=True) # E.g. 'weekly', 'daily', index=True)
+
+
 class UserIntegration(Base):
     """Stores per-user credentials for external service integrations."""
     __tablename__ = "user_integrations"
