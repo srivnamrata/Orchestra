@@ -686,61 +686,58 @@ html.dark .qchip {
 .sec-link { font-size: 12px; color: var(--g-blue); cursor: pointer; font-weight: 600; transition: opacity 0.15s; }
 .sec-link:hover { opacity: 0.75; }
 
-/* ── Greeting card — glass over mesh ── */
+/* ── Greeting ── */
 .greeting {
-  background: linear-gradient(135deg,
-    rgba(26,115,232,0.85) 0%,
-    rgba(13,71,161,0.90) 55%,
-    rgba(26,35,126,0.92) 100%);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 0 0 16px 0;
+  flex-shrink: 0;
+}
+.g-hi { font-family: var(--font-mono); font-size: 11px; color: var(--md-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 2px; }
+.g-title { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--md-on-surface); letter-spacing: -0.3px; }
+
+/* ── Unified Stats Bar (Blue) ── */
+.unified-stats-bar {
+  background: linear-gradient(135deg, rgba(26,115,232,0.85) 0%, rgba(13,71,161,0.90) 55%, rgba(26,35,126,0.92) 100%);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border-radius: var(--radius-xl);
   border: 1px solid rgba(255,255,255,0.20);
-  padding: 24px 28px;
   color: white;
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex;
   position: relative; overflow: hidden;
   box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255,255,255,0.18);
   flex-shrink: 0;
+  margin-bottom: 24px;
 }
-.greeting::before {
-  content: '';
-  position: absolute; top: -60px; right: 80px;
-  width: 280px; height: 280px;
-  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 65%);
-  pointer-events: none;
+.unified-stats-bar::before {
+  content: ''; position: absolute; top: -60px; right: 80px; width: 280px; height: 280px;
+  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 65%); pointer-events: none;
 }
-.greeting::after {
-  content: '';
-  position: absolute; bottom: -40px; right: -40px;
-  width: 200px; height: 200px;
-  background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 65%);
-  pointer-events: none;
+.usb-analytics { flex: 1; display: flex; padding: 18px 0; }
+.usb-stat {
+  flex: 1; text-align: center; display: flex; flex-direction: column; justify-content: center;
+  border-right: 1px solid rgba(255,255,255,0.15);
+  cursor: pointer; transition: background 0.15s;
 }
-/* Google dots watermark */
-.g-dots {
-  position: absolute; right: 200px; top: 50%; transform: translateY(-50%);
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; opacity: 0.08;
+.usb-stat:hover { background: rgba(255,255,255,0.06); }
+.usb-stat:last-child { border-right: none; }
+.usb-num { font-family: var(--font-display); font-size: 24px; font-weight: 700; margin-bottom: 2px; }
+.usb-lbl { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,0.8); }
+.usb-divider { width: 1px; background: rgba(255,255,255,0.25); }
+.usb-reasoning {
+  flex: 1; display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px; cursor: pointer;
+  background: rgba(255,255,255,0.05); transition: background 0.2s;
 }
-.g-dot-r { width: 10px; height: 10px; border-radius: 50%; }
-
-.g-hi { font-family: var(--font-mono); font-size: 10px; color: rgba(255,255,255,0.6); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
-.g-title { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin-bottom: 5px; letter-spacing: -0.3px; }
-.g-sub { font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.6; }
-.g-right { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; position: relative; z-index: 1; }
-.g-safety-num { font-family: var(--font-display); font-size: 32px; font-weight: 700; line-height: 1; letter-spacing: -1px; }
-.g-safety-lbl { font-family: var(--font-mono); font-size: 9px; color: rgba(255,255,255,0.55); letter-spacing: 1px; text-align: right; margin-top: 2px; }
-.g-btns { display: flex; gap: 8px; }
-.g-btn {
-  display: flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-radius: var(--radius-full);
-  font-family: var(--font-body); font-size: 12px; font-weight: 600;
-  cursor: pointer; border: none; transition: all 0.15s;
+.usb-reasoning:hover { background: rgba(255,255,255,0.12); }
+.usb-r-icon {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center;
 }
-.g-btn.outline { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.25); }
-.g-btn.outline:hover { background: rgba(255,255,255,0.22); }
-.g-btn.white { background: white; color: var(--g-blue); box-shadow: var(--shadow-1); }
-.g-btn.white:hover { box-shadow: var(--shadow-2); transform: translateY(-1px); }
+.usb-r-text { margin-left: 16px; flex: 1; }
+.usb-r-title { font-family: var(--font-body); font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+.usb-r-sub { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,0.75); }
 
 /* ── Stats row (Google Cards) ── */
 .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; flex-shrink: 0; }
@@ -1541,19 +1538,8 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
 
     <!-- Greeting -->
     <div class="greeting anim a1">
-      <div class="g-dots">
-        <div class="g-dot-r" style="background:#4285f4"></div><div class="g-dot-r" style="background:#ea4335"></div>
-        <div class="g-dot-r" style="background:#fbbc04"></div><div class="g-dot-r" style="background:#34a853"></div>
-        <div class="g-dot-r" style="background:#ea4335"></div><div class="g-dot-r" style="background:#4285f4"></div>
-        <div class="g-dot-r" style="background:#34a853"></div><div class="g-dot-r" style="background:#fbbc04"></div>
-        <div class="g-dot-r" style="background:#fbbc04"></div><div class="g-dot-r" style="background:#34a853"></div>
-        <div class="g-dot-r" style="background:#4285f4"></div><div class="g-dot-r" style="background:#ea4335"></div>
-      </div>
-      <div>
-        <div class="g-hi">Good afternoon · Saturday, 25 Apr 2026</div>
-        <div class="g-title">Welcome back, Administrator 👋</div>
-      </div>
-
+      <div class="g-hi">Good afternoon · Saturday, 25 Apr 2026</div>
+      <div class="g-title">Welcome back, Administrator 👋</div>
     </div>
 
     <!-- Main Prompt Bar -->
@@ -1586,39 +1572,38 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
       </div>
     </div>
 
-    <!-- Stats -->
-    <div class="stats-row anim a2">
-      <div class="stat-card" style="cursor:pointer" onclick="window.location.href='/analytics'">
-        <div class="sc-icon-row">
-          <div class="sc-icon" style="background:var(--g-green-light)"><span class="ms" style="color:var(--g-green)">task_alt</span></div>
-          <span class="sc-trend trend-up">↑ 18%</span>
+    <!-- Unified Stats & Reasoning Bar -->
+    <div class="unified-stats-bar anim a2">
+      <!-- Left: Analytics -->
+      <div class="usb-analytics">
+        <div class="usb-stat" onclick="window.location.href='/analytics'">
+          <div class="usb-num">247</div>
+          <div class="usb-lbl">Tasks Completed</div>
         </div>
-        <div class="sc-num" style="color:var(--g-green)">247</div>
-        <div class="sc-lbl">Tasks Completed</div>
+        <div class="usb-stat" onclick="window.location.href='/analytics'">
+          <div class="usb-num">98%</div>
+          <div class="usb-lbl">Safety Score</div>
+        </div>
+        <div class="usb-stat" onclick="window.location.href='/analytics'">
+          <div class="usb-num">83h</div>
+          <div class="usb-lbl">Time Saved</div>
+        </div>
       </div>
-      <div class="stat-card" style="cursor:pointer" onclick="window.location.href='/analytics'">
-        <div class="sc-icon-row">
-          <div class="sc-icon" style="background:var(--g-blue-light)"><span class="ms" style="color:var(--g-blue)">verified_user</span></div>
-          <span class="sc-trend trend-up">↑ +2%</span>
+      
+      <div class="usb-divider"></div>
+
+      <!-- Right: Active Workflow & Agent Reasoning -->
+      <div class="usb-reasoning" onclick="window.location.href='/trace'">
+        <div style="display:flex; align-items:center;">
+          <div class="usb-r-icon">
+            <span class="ms" style="color:white; font-size:22px;">psychology</span>
+          </div>
+          <div class="usb-r-text">
+            <div class="usb-r-title"><span id="active-count">3</span> Active Workflows</div>
+            <div class="usb-r-sub">Click to view real-time Agent Reasoning</div>
+          </div>
         </div>
-        <div class="sc-num" style="color:var(--g-blue)">98%</div>
-        <div class="sc-lbl">Safety Score</div>
-      </div>
-      <div class="stat-card" style="cursor:pointer" onclick="window.location.href='/analytics'">
-        <div class="sc-icon-row">
-          <div class="sc-icon" style="background:var(--g-violet-light)"><span class="ms" style="color:var(--g-violet)">schedule</span></div>
-          <span class="sc-trend trend-up">↑ +6h</span>
-        </div>
-        <div class="sc-num" style="color:var(--g-violet)">83h</div>
-        <div class="sc-lbl">Time Saved</div>
-      </div>
-      <div class="stat-card" style="cursor:pointer" onclick="window.location.href='/trace'">
-        <div class="sc-icon-row">
-          <div class="sc-icon" style="background:var(--g-amber-light)"><span class="ms" style="color:var(--g-amber)">account_tree</span></div>
-          <span class="sc-trend trend-nt">+2 this week</span>
-        </div>
-        <div class="sc-num" style="color:var(--g-amber)" id="active-count">3</div>
-        <div class="sc-lbl">Active Workflows</div>
+        <span class="ms" style="color:rgba(255,255,255,0.6); font-size:24px;">chevron_right</span>
       </div>
     </div>
 
