@@ -1457,6 +1457,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
 .ct-close:hover { background: var(--md-surface-2); color: var(--md-on-surface); }
 .completion-toast { position: fixed; } /* ensure relative for close btn */
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -1665,7 +1666,8 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
         <div style="display:flex;align-items:center;gap:14px">
           <div class="intel-title">🧩 Intelligence</div>
           <div class="intel-tabs">
-            <button class="intel-tab active" onclick="switchIntel('news',this)">📰 News <span class="intel-tab-count">3</span></button>
+            <button class="intel-tab active" onclick="switchIntel('analytics',this)">📊 Analytics <span class="intel-tab-count">2</span></button>
+            <button class="intel-tab" onclick="switchIntel('news',this)">📰 News <span class="intel-tab-count">3</span></button>
             <button class="intel-tab" onclick="switchIntel('research',this)">🔬 Research <span class="intel-tab-count">4</span></button>
             <button class="intel-tab" onclick="switchIntel('tasks',this)">✅ Tasks <span class="intel-tab-count">6</span></button>
             <button class="intel-tab" onclick="switchIntel('schedule',this)">📅 Schedule <span class="intel-tab-count">4</span></button>
@@ -1679,8 +1681,33 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
         </div>
       </div>
       <div class="intel-body">
+        <div class="intel-pane active" id="pane-analytics">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <div style="font-weight:600; color:var(--md-on-surface);">Project Analytics</div>
+            <button class="intel-btn" onclick="fetchIntel()"><span class="ms sm">refresh</span> Sync</button>
+          </div>
+          
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+            <div style="background:var(--md-surface-1); padding:16px; border-radius:12px; border:1px solid var(--md-surface-2);">
+              <div style="font-size:12px; font-weight:600; color:var(--md-muted); margin-bottom:12px;">Tasks Velocity</div>
+              <div style="height:140px; position:relative;">
+                <canvas id="intelTasksChart"></canvas>
+              </div>
+            </div>
+            <div style="background:var(--md-surface-1); padding:16px; border-radius:12px; border:1px solid var(--md-surface-2);">
+              <div style="font-size:12px; font-weight:600; color:var(--md-muted); margin-bottom:12px;">Time Saved (hrs)</div>
+              <div style="height:140px; position:relative;">
+                <canvas id="intelTimeChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:16px; background:var(--g-blue-light); padding:12px; border-radius:12px; display:flex; gap:12px; align-items:center;">
+             <span class="ms" style="color:var(--g-blue);">insights</span>
+             <div style="font-size:12px; color:var(--g-blue);">Analytics Agent reports a 24% increase in completion efficiency this week.</div>
+          </div>
+        </div>
 
-        <div class="intel-pane active" id="pane-news">
+        <div class="intel-pane" id="pane-news">
           <div class="intel-source-label">Hacker News · 25 Apr 2026</div>
           <div class="news-grid">
             <div class="news-card nc-hn"><div class="news-source-row"><div class="news-favicon" style="background:#ff6600;color:white">Y</div><span class="news-source-name">Hacker News</span><span class="news-date">25 Apr</span></div><div class="news-title">There Will Be a Scientific Theory of Deep Learning</div><div class="news-meta"><span class="news-score">▲ 18</span><span class="news-score">💬 1</span></div><div class="news-actions"><button class="na-btn">🎧 Listen</button><button class="na-btn">📖 Read</button><button class="na-btn">🔖 Save</button></div></div>
@@ -4549,3 +4576,57 @@ document.addEventListener('DOMContentLoaded', () => {
 ══════════════════════════════════════ -->
 
 </body></html>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    try {
+      const isDark = document.documentElement.classList.contains('dark');
+      Chart.defaults.font.family = "'Google Sans', 'Roboto', sans-serif";
+      Chart.defaults.color = isDark ? '#9e9da2' : '#5f6368';
+      const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+      
+      const commonOpts = {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: gridColor }, border: { dash: [4, 4] } }
+        }
+      };
+
+      const ctxTasks = document.getElementById('intelTasksChart');
+      if(ctxTasks) {
+        new Chart(ctxTasks, {
+          type: 'line',
+          data: {
+            labels: ['W1', 'W2', 'W3', 'W4', 'W5'],
+            datasets: [{
+              data: [12, 19, 15, 25, 32],
+              borderColor: '#137333',
+              backgroundColor: 'rgba(19, 115, 51, 0.1)',
+              borderWidth: 2, tension: 0.4, fill: true
+            }]
+          },
+          options: commonOpts
+        });
+      }
+
+      const ctxTime = document.getElementById('intelTimeChart');
+      if(ctxTime) {
+        new Chart(ctxTime, {
+          type: 'bar',
+          data: {
+            labels: ['W1', 'W2', 'W3', 'W4', 'W5'],
+            datasets: [{
+              data: [8, 14, 22, 18, 30],
+              backgroundColor: '#7c4dff',
+              borderRadius: 4
+            }]
+          },
+          options: commonOpts
+        });
+      }
+    } catch(e) {}
+  }, 1000);
+});
+</script>
