@@ -205,21 +205,21 @@ steps:
       - 'gcr.io/$PROJECT_ID/multi-agent-news:$COMMIT_SHA'
     waitFor: ['build-news-mcp']
 
-  # Step 19: Deploy Orchestrator
-  - name: 'gcr.io/cloud-builders/gke-deploy'
+  # Step 19: Deploy Orchestrator to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-orchestrator'
+    entrypoint: 'gcloud'
     args:
       - 'run'
-      - '--filename=k8s-deployment.yaml'
+      - 'deploy'
+      - 'multi-agent-orchestrator'
       - '--image=gcr.io/$PROJECT_ID/multi-agent-orchestrator:$COMMIT_SHA'
-      - '--app=multi-agent-orchestrator'
-      - '--namespace=default'
-      - '--output=/workspace/output'
-      - '--cluster=multi-agent-cluster'
-      - '--location=us-central1'
-    env:
-      - 'CLOUDSDK_COMPUTE_REGION=us-central1'
-      - 'CLOUDSDK_CONTAINER_CLUSTER=multi-agent-cluster'
+      - '--region=us-central1'
+      - '--memory=1Gi'
+      - '--cpu=1'
+      - '--timeout=3600'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=FIRESTORE_MODE=production,PROJECT_ID=$PROJECT_ID,MCP_TASK_HOST=multi-agent-task,MCP_CALENDAR_HOST=multi-agent-calendar,MCP_NOTES_HOST=multi-agent-notes,MCP_CRITIC_HOST=multi-agent-critic,MCP_AUDITOR_HOST=multi-agent-auditor,MCP_EVENT_MONITOR_HOST=multi-agent-event-monitor,MCP_RESEARCH_HOST=multi-agent-research,MCP_NEWS_HOST=multi-agent-news'
     waitFor: ['push-orchestrator']
 
 images:
