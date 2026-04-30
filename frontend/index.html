@@ -1483,15 +1483,20 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
     <div class="nav-item active"><span class="ms">home</span> Dashboard</div>
     <div class="nav-item"><span class="ms">task_alt</span> All Tasks <span class="nav-badge nb-gray">24</span></div>
     <div class="nav-item"><span class="ms">folder_open</span> Outputs</div>
-    <div class="nav-label">Intelligence</div>
-    <div class="nav-item" onclick="window.location.href='/trace'" style="cursor:pointer"><span class="ms">psychology</span> Agent Reasoning</div>
-    <div class="nav-item"><span class="ms">verified</span> Vibe Checks <span class="nav-badge nb-blue">new</span></div>
-    <div class="nav-item"><span class="ms">swords</span> Debates</div>
-    <div class="nav-item"><span class="ms">shield</span> Safety Audit</div>
-    <div class="nav-label">Integrations</div>
-    <div class="nav-item"><span class="ms">code</span> GitHub <span class="nav-badge nb-gray">stub</span></div>
-    <div class="nav-item"><span class="ms">forum</span> Slack <span class="nav-badge nb-gray">stub</span></div>
-    <div class="nav-item"><span class="ms">mail</span> Email <span class="nav-badge nb-gray">stub</span></div>
+        <!-- Silent Bottlenecks -->
+        <div class="bottlenecks-section" id="bottlenecks" style="margin: 12px 10px; padding: 12px; background: var(--md-surface-1); border-radius: var(--radius-md); border: 1px solid var(--md-surface-2);">
+            <div class="bn-head">
+              <div class="bn-title">🚨 Silent Bottlenecks</div>
+              <div class="bn-sub">Issues agents found proactively — without you asking.</div>
+            </div>
+            <div id="bnList">
+              <!-- Dynamically populated by app.js fetchBottlenecks() -->
+              <div style="padding: 24px; text-align: center; color: var(--md-muted); font-size: 13px;">
+                <span class="ms" style="font-size: 18px; margin-bottom: 8px; display: block; animation: spin 2s linear infinite;">sync</span>
+                Scanning for bottlenecks...
+              </div>
+            </div>
+        </div>
   </nav>
 
   <!-- Quick Actions -->
@@ -1501,6 +1506,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
     <button class="sa-btn" onclick="runDemo('scan')"><span class="ms">radar</span> Run Scan</button>
     <button class="sa-btn" onclick="runDemo('vibe')"><span class="ms">check_circle</span> Vibe Check</button>
     <button class="sa-btn" onclick="runDemo('debate')"><span class="ms">gavel</span> Agent Debate</button>
+    <button class="sa-btn" onclick="runDemo('safety')"><span class="ms">shield</span> Safety Audit</button>
   </div>
 
   <!-- User -->
@@ -1574,15 +1580,26 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
 
     <!-- Unified Stats & Reasoning Bar -->
     <div class="unified-stats-bar anim a2">
-      <!-- Left: Intelligence -->
-      <div class="usb-reasoning intel-toggle-btn" onclick="toggleIntelOverlay(event)" style="border-radius: var(--radius-xl) 0 0 var(--radius-xl);">
+      <!-- Left: Intelligence & Integrations -->
+      <div class="usb-reasoning intel-toggle-btn" onclick="toggleIntelOverlay(event)" style="border-radius: var(--radius-xl) 0 0 var(--radius-xl); border-right: 1px solid rgba(255,255,255,0.15);">
         <div style="display:flex; align-items:center;">
           <div class="usb-r-icon">
             <span class="ms" style="color:white; font-size:22px;">hub</span>
           </div>
           <div class="usb-r-text">
             <div class="usb-r-title">Intelligence</div>
-            <div class="usb-r-sub">News, Research & Tasks</div>
+            <div class="usb-r-sub">News & Tasks</div>
+          </div>
+        </div>
+      </div>
+      <div class="usb-reasoning" onclick="window.location.href='/integrations'" style="border-radius: 0;">
+        <div style="display:flex; align-items:center;">
+          <div class="usb-r-icon">
+            <span class="ms" style="color:white; font-size:22px;">extension</span>
+          </div>
+          <div class="usb-r-text">
+            <div class="usb-r-title">Integrations</div>
+            <div class="usb-r-sub">Active plugins</div>
           </div>
         </div>
       </div>
@@ -1610,7 +1627,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
             <span class="ms" style="color:white; font-size:22px;">psychology</span>
           </div>
           <div class="usb-r-text">
-            <div class="usb-r-title"><span id="active-count">3</span> Agent Thought Trace</div>
+            <div class="usb-r-title">Agent Thought Trace</div>
             <div class="usb-r-sub">Click to view real-time Agent Reasoning</div>
           </div>
         </div>
@@ -1821,28 +1838,25 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
           </div>
         </div>
 
-        <!-- Silent Bottlenecks -->
-        <div class="trace-card">
-          <div class="bottlenecks-section" id="bottlenecks">
-            <div class="bn-head">
-              <div class="bn-title">🚨 Silent Bottlenecks</div>
-              <div class="bn-sub">Issues agents found proactively — without you asking.</div>
-            </div>
-            <div id="bnList">
-              <!-- Dynamically populated by app.js fetchBottlenecks() -->
-              <div style="padding: 24px; text-align: center; color: var(--md-muted); font-size: 13px;">
-                <span class="ms" style="font-size: 18px; margin-bottom: 8px; display: block; animation: spin 2s linear infinite;">sync</span>
-                Scanning for bottlenecks...
-              </div>
-            </div>
-          </div>
-        </div>
+
 
       </div>
     </div>
 
 
   </div>
+  <dialog id="quickActionModal" style="padding: 24px; border: 1px solid var(--md-surface-2); border-radius: var(--radius-xl); background: var(--md-surface); box-shadow: var(--shadow-3); width: 400px; max-width: 90vw; color: var(--md-on-surface);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+      <div id="qaTitle" style="font-family: var(--font-display); font-size: 18px; font-weight: 700;">Action</div>
+      <button onclick="document.getElementById('quickActionModal').close()" style="background: none; border: none; cursor: pointer; color: var(--md-muted);"><span class="ms">close</span></button>
+    </div>
+    <div id="qaContent" style="color: var(--md-muted); font-size: 14px; line-height: 1.5;">
+      Loading interactive view...
+    </div>
+    <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+      <button class="tb-btn primary" onclick="document.getElementById('quickActionModal').close()">Close</button>
+    </div>
+  </dialog>
 </main>
 
 <script>
@@ -2140,12 +2154,22 @@ async function submitGoal() {
   }
 }
 
-// Demo buttons
+// Demo buttons / Quick actions
 function runDemo(type){
-  const msgs={vibe:{agent:'CRITIC',color:'var(--g-amber)',cbg:'var(--g-amber-light)',text:'Vibe Check started. Evaluating goal alignment across all active workflows…'},debate:{agent:'ORCHESTRATOR',color:'var(--g-green)',cbg:'var(--g-green-light)',text:'Debate initiated. Orchestrator vs Critic — arguing best strategy for UI Redesign…'},critic:{agent:'CRITIC',color:'var(--g-amber)',cbg:'var(--g-amber-light)',text:'Critic Replan running. Scanning for inefficiencies across workflow graph…'},scan:{agent:'AUDITOR',color:'var(--g-teal)',cbg:'var(--g-teal-light)',text:'Proactive scan started. Cross-referencing tasks, calendar, GitHub and email…'}};
-  const m=msgs[type];if(!m)return;
-  const n=new Date(),t=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
-  feedData.unshift({time:t,agent:m.agent,color:m.color,cbg:m.cbg,text:m.text,tag:'status'});feedFilter='all';document.querySelectorAll('.feed-tab').forEach((b,i)=>b.classList.toggle('active',i===0));renderFeed();
+  const titles = {
+    vibe: "Vibe Check", debate: "Agent Debate", critic: "Critic Replan", scan: "Run Scan", safety: "Safety Audit"
+  };
+  const contents = {
+    vibe: "This view would display the active vibe check across all orchestrator nodes. Evaluates goal alignment.",
+    debate: "This view would stream live agent debate reasoning. Orchestrator vs Critic arguing best strategy.",
+    critic: "This view would present the Critic Replan graph optimization.",
+    scan: "This view would show proactive scans across integrations.",
+    safety: "This view would list flagged PII and ethics audits."
+  };
+  const dialog = document.getElementById('quickActionModal');
+  document.getElementById('qaTitle').textContent = titles[type];
+  document.getElementById('qaContent').textContent = contents[type];
+  dialog.showModal();
 }
 
 
