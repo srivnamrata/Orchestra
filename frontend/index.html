@@ -1481,8 +1481,8 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
   <nav class="sidebar-nav">
     <div class="nav-label">Workspace</div>
     <div class="nav-item active"><span class="ms">home</span> Dashboard</div>
-    <div class="nav-item" onclick="runDemo('tasks')" style="cursor:pointer;"><span class="ms">task_alt</span> All Tasks <span class="nav-badge nb-gray">24</span></div>
-    <div class="nav-item" onclick="runDemo('outputs')" style="cursor:pointer;"><span class="ms">folder_open</span> Outputs</div>
+    <div class="nav-item" onclick="window.location.href='/tasks.html'" style="cursor:pointer;"><span class="ms">task_alt</span> All Tasks <span class="nav-badge nb-gray" id="navAllTasksBadge">24</span></div>
+    <div class="nav-item" onclick="window.location.href='/outputs.html'" style="cursor:pointer;"><span class="ms">folder_open</span> Outputs</div>
         <!-- Silent Bottlenecks -->
         <div class="bottlenecks-section" id="bottlenecks" style="margin: 12px 10px; padding: 12px; background: var(--md-surface-1); border-radius: var(--radius-md); border: 1px solid var(--md-surface-2);">
             <div class="bn-head">

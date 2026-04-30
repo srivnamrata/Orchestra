@@ -171,11 +171,28 @@ def create_app() -> FastAPI:
         return {"message": "Trace dashboard not found. Ensure frontend folder exists."}
 
     @app.get("/login", include_in_schema=False)
+    @app.get("/login.html", include_in_schema=False)
     async def serve_login():
         login_path = os.path.join(FRONTEND_DIR, "login.html")
         if os.path.exists(login_path):
             return FileResponse(login_path)
         return {"message": "Login page not found."}
+
+    @app.get("/tasks.html", include_in_schema=False)
+    @app.get("/tasks", include_in_schema=False)
+    async def serve_tasks():
+        tasks_path = os.path.join(FRONTEND_DIR, "tasks.html")
+        if os.path.exists(tasks_path):
+            return FileResponse(tasks_path)
+        return {"message": "Tasks page not found."}
+
+    @app.get("/outputs.html", include_in_schema=False)
+    @app.get("/outputs", include_in_schema=False)
+    async def serve_outputs():
+        outputs_path = os.path.join(FRONTEND_DIR, "outputs.html")
+        if os.path.exists(outputs_path):
+            return FileResponse(outputs_path)
+        return {"message": "Outputs page not found."}
 
     @app.get("/analytics", include_in_schema=False)
     async def serve_analytics():
