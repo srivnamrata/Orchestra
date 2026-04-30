@@ -577,9 +577,9 @@ const EVENTS = [
 ];
 const savedGoal = localStorage.getItem('currentGoal');
 if (savedGoal) {
-  document.getElementById('traceActiveGoal').textContent = savedGoal;
+  document.getElementById('tbMeta').textContent = savedGoal;
 } else {
-  document.getElementById('traceActiveGoal').textContent = "Waiting for goal...";
+  document.getElementById('tbMeta').textContent = "Waiting for goal...";
 }
 
 

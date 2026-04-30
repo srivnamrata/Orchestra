@@ -13,11 +13,9 @@ async function fetchBottlenecks() {
         const data = await response.json();
         
         if (!data.bottlenecks || data.bottlenecks.length === 0) {
-            data.bottlenecks = [
-                { id: 'bn1', source: 'github', title: 'PR #142 Blocked', detail: 'Failing CI/CD checks blocking production release.', action_text: 'Review CI Logs' },
-                { id: 'bn2', source: 'slack', title: 'Urgent Thread', detail: 'Design team waiting for approval on new dashboard mockups.', action_text: 'Reply in Slack' },
-                { id: 'bn3', source: 'email', title: 'Contract Renewal', detail: 'Vendor agreement expires in 2 days. Signature required.', action_text: 'Draft Response' }
-            ];
+            listEl.innerHTML = '';
+            if (typeof checkBottlenecksEmpty === 'function') checkBottlenecksEmpty();
+            return;
         }
 
         let html = '';
@@ -2874,9 +2872,10 @@ async function submitNLGoal() {
     _nlActiveStream = controller;
 
     try {
+        const token = localStorage.getItem('orch-session-token');
         const res = await fetch('/orchestrate/stream', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Session-Token': token || '' },
             body: JSON.stringify({ goal, priority: priorityEl.value }),
             signal: controller.signal
         });
@@ -3766,7 +3765,8 @@ async function runGuruAudit() {
     </div>`;
 
     try {
-        const res  = await fetch('/api/guru/audit', { method: 'POST' });
+        const token = localStorage.getItem('orch-session-token');
+        const res  = await fetch('/api/guru/audit', { method: 'POST', headers: { 'X-Session-Token': token || '' } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.status !== 'success') throw new Error(data.message || 'Audit failed');
@@ -3843,7 +3843,8 @@ async function submitVeda(text) {
     if (inp) inp.value = '';
     if (window.activityFeed) window.activityFeed.log(`📚 Veda: processing "${text}"`, 'status', 'VEDA');
     try {
-        const res  = await fetch('/api/veda', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+        const token = localStorage.getItem('orch-session-token');
+        const res  = await fetch('/api/veda', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Session-Token': token || '' }, body: JSON.stringify({ text }) });
         const data = await res.json();
         if (data.status === 'success') {
             if (window.activityFeed) window.activityFeed.log(`📚 Veda: ${data.result?.message || 'Done!'}`, 'success', 'VEDA');
@@ -3860,7 +3861,8 @@ async function fetchBooks() {
     const shelf = document.getElementById('bookshelf');
     if (!shelf) return;
     try {
-        const res   = await fetch('/api/books');
+        const token = localStorage.getItem('orch-session-token');
+        const res   = await fetch('/api/books', { headers: { 'X-Session-Token': token || '' } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const books = await res.json();
         if (!books?.length) {

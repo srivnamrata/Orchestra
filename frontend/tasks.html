@@ -176,7 +176,8 @@ body::before {
   async function loadTasks() {
     const body = document.getElementById('tasksBody');
     try {
-      const res = await fetch('/api/tasks');
+      const token = localStorage.getItem('orch-session-token');
+      const res = await fetch('/api/tasks', { headers: { 'X-Session-Token': token || '' } });
       if (!res.ok) throw new Error('Network response was not ok');
       const data = await res.json();
 

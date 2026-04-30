@@ -1,16 +1,17 @@
 import logging
 
-from fastapi import APIRouter
-
+from fastapi import APIRouter, Depends
 from backend.api import state
+from backend.auth.deps import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Guru"])
 
 
 @router.post("/api/guru/audit")
-async def guru_life_audit():
+async def guru_life_audit(user=Depends(get_current_user)):
     """Param Mitra life audit — pulls real data from git, email, tasks, and books."""
+    user_id = user["user_id"]
     if not state.param_mitra:
         return {"status": "error", "message": "Guru agent not initialized"}
 
@@ -23,8 +24,8 @@ async def guru_life_audit():
         gh_data    = {}
         email_data = {}
 
-    tasks = get_all_tasks(limit=20)
-    books = get_all_books()
+    tasks = get_all_tasks(limit=20, user_id=user_id)
+    books = get_all_books(user_id=user_id)
 
     done_tasks     = [t for t in tasks if t.status == "done"]
     open_tasks     = [t for t in tasks if t.status not in ("done", "cancelled")]

@@ -611,8 +611,11 @@ html.dark .qchip {
 }
 .user-name { font-size: 13px; font-weight: 600; }
 .user-email { font-size: 11px; color: var(--md-muted); font-family: var(--font-mono); }
-.user-gear { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; border: none; background: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--md-muted); transition: all 0.15s; }
+.user-gear, .user-logout { width: 32px; height: 32px; border-radius: 50%; border: none; background: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--md-muted); transition: all 0.15s; }
+.user-gear { margin-left: auto; }
+.user-logout { margin-left: 4px; }
 .user-gear:hover { background: var(--md-surface-1); color: var(--g-blue); }
+.user-logout:hover { background: var(--md-surface-1); color: #ea4335; }
 
 
 /* ══════════════════════════════════════
@@ -1518,6 +1521,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
       <div class="user-email">admin@orchestra.ai</div>
     </div>
     <button class="user-gear"><span class="ms">settings</span></button>
+    <button class="user-logout" onclick="window.location.href='login.html'" title="Logout"><span class="ms">logout</span></button>
   </div>
 </aside>
 
@@ -1593,7 +1597,7 @@ html.dark .completion-toast { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1p
           </div>
         </div>
       </div>
-      <div class="usb-reasoning" onclick="if(window.orchOnboard) window.orchOnboard.open()" style="border-radius: 0;">
+      <div class="usb-reasoning" onclick="window.onboardStep=1; renderOnboardStep(); document.getElementById('onboardOverlay').classList.add('open');" style="border-radius: 0;">
         <div style="display:flex; align-items:center;">
           <div class="usb-r-icon">
             <span class="ms" style="color:white; font-size:22px;">extension</span>
@@ -3657,8 +3661,10 @@ function finishOnboard() {
 // Show on first visit
 (function() {
   let done;
-  done = false; // Forced for demonstration
+  try { done = localStorage.getItem('orchestra-onboarded'); } catch(e){}
   if(!done) {
+    // Mark as done immediately so it doesn't reappear on page navigation
+    try { localStorage.setItem('orchestra-onboarded','true'); } catch(e){}
     setTimeout(() => {
       document.getElementById('onboardOverlay').classList.add('open');
       renderOnboardStep();
@@ -4561,6 +4567,7 @@ document.addEventListener('DOMContentLoaded', () => {
      This script patches the replayTrace function on the trace page
 ══════════════════════════════════════ -->
 
+<script src="/static/app.js"></script>
 </body></html>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
