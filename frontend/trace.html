@@ -720,8 +720,8 @@ function renderTimeline(filter) {
           bubble.style.setProperty('--event-color', typeColor);
           bubble.innerHTML = `
             <div class="eb-type" style="color:${typeColor}">${ev.type.toUpperCase()}</div>
-            <div class="eb-text">${ev.title}</div>
-            <div class="eb-detail">${ev.detail}</div>
+            <div class="eb-text">${ev.title || ev.text || ''}</div>
+            <div class="eb-detail">${ev.detail || ''}</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">
               ${(ev.tags||[]).map(t=>`<span class="eb-tag" style="background:${typeColor}18;color:${typeColor}">${t}</span>`).join('')}
             </div>`;
@@ -795,8 +795,8 @@ function renderFilteredEvents(events) {
         <span style="font-family:var(--font-mono);font-size:10px;color:var(--md-dim)">${ev.time}</span>
         <span class="eb-type" style="color:${typeColor}">${ev.type.toUpperCase()}</span>
       </div>
-      <div class="eb-text">${ev.title}</div>
-      <div class="eb-detail">${ev.detail}</div>
+      <div class="eb-text">${ev.title || ev.text || ''}</div>
+      <div class="eb-detail">${ev.detail || ''}</div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">
         ${(ev.tags||[]).map(t=>`<span class="eb-tag" style="background:${typeColor}18;color:${typeColor}">${t}</span>`).join('')}
       </div>`;
@@ -841,7 +841,7 @@ function selectEvent(ev, bubble) {
     </div>
 
     <!-- Title -->
-    <div class="dp-title">${ev.title}</div>
+    <div class="dp-title">${ev.title || ev.text || ''}</div>
 
     <!-- Stats -->
     <div class="dp-stats">
