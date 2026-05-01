@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orchestra — Agent Trace</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Google+Sans+Display:wght@400;500;700&family=Google+Sans+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<style>
+:root {
+  --g-blue:        #1a73e8;
+  --g-blue-light:  #e8f0fe;
+  --g-green:       #137333;
+  --g-green-light: #e6f4ea;
+  --g-green-mid:   #1e8e3e;
+  --g-amber:       #b06000;
+  --g-amber-light: #fef7e0;
+  --g-red:         #d93025;
+  --g-red-light:   #fce8e6;
+  --g-teal:        #007b83;
+  --g-teal-light:  #e4f7f7;
+  --g-violet:      #7c4dff;
+  --g-violet-light:#ede7f6;
+
+  --md-bg:         #f8f9fa;
+  --md-surface:    #ffffff;
+  --md-surface-1:  #f1f3f4;
+  --md-surface-2:  #e8eaed;
+  --md-surface-3:  #dadce0;
+  --md-on-surface: #202124;
+  --md-muted:      #5f6368;
+  --md-dim:        #9aa0a6;
+
+  --shadow-1: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+  --shadow-2: 0 1px 2px rgba(60,64,67,.3), 0 2px 6px 2px rgba(60,64,67,.15);
+
+  --font-body:    'Google Sans', 'Roboto', sans-serif;
+  --font-display: 'Google Sans Display', 'Google Sans', sans-serif;
+  --font-mono:    'Google Sans Mono', 'Roboto Mono', monospace;
+
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --radius-xl: 24px; --radius-full: 100px;
+
+  --glass-bg:     rgba(255,255,255,0.72);
+  --glass-border: rgba(255,255,255,0.55);
+  --glass-blur:   blur(20px) saturate(180%);
+  --card-bg:      rgba(255,255,255,0.60);
+  --card-border:  rgba(255,255,255,0.45);
+}
+
+html.dark {
+  --g-blue:        #8ab4f8; --g-blue-light:  #1a2e4a;
+  --g-green:       #81c995; --g-green-light: #1b3a27; --g-green-mid: #5bb974;
+  --g-amber:       #fdd663; --g-amber-light: #3a2a00;
+  --g-red:         #f28b82; --g-red-light:   #3c1f1e;
+  --g-teal:        #78d9ec; --g-teal-light:  #0d2f35;
+  --g-violet:      #c58af9; --g-violet-light:#2d1f4a;
+  --md-bg:         #1c1b1f; --md-surface:    #2d2c31;
+  --md-surface-1:  #37363b; --md-surface-2:  #414046;
+  --md-surface-3:  #4e4d53; --md-on-surface: #e3e2e6;
+  --md-muted:      #9e9da2; --md-dim:        #6e6d72;
+  --shadow-1: 0 1px 3px rgba(0,0,0,.5), 0 1px 4px 1px rgba(0,0,0,.3);
+  --shadow-2: 0 1px 3px rgba(0,0,0,.5), 0 3px 8px 2px rgba(0,0,0,.3);
+  --glass-bg:     rgba(30,29,35,0.78); --glass-border: rgba(255,255,255,0.10);
+  --card-bg:      rgba(28,27,32,0.65); --card-border:  rgba(255,255,255,0.08);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  background: var(--md-bg);
+  color: var(--md-on-surface);
+  font-family: var(--font-body);
+  height: 100vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+/* Mesh background */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 60% at 5%  15%,  rgba(66,133,244,0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 95% 10%,  rgba(52,168,83,0.11)  0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 85% 85%,  rgba(251,188,4,0.09)  0%, transparent 55%),
+    radial-gradient(ellipse 55% 50% at 10% 85%,  rgba(234,67,53,0.09)  0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 50% 50%,  rgba(124,77,255,0.07) 0%, transparent 60%);
+  animation: meshDrift 22s ease-in-out infinite alternate;
+}
+html.dark body::before {
+  background:
+    radial-gradient(ellipse 70% 60% at 5%  15%,  rgba(66,133,244,0.20) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 95% 10%,  rgba(52,168,83,0.15)  0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 85% 85%,  rgba(251,188,4,0.13)  0%, transparent 55%),
+    radial-gradient(ellipse 55% 50% at 10% 85%,  rgba(234,67,53,0.13)  0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 50% 50%,  rgba(124,77,255,0.11) 0%, transparent 60%);
+}
+@keyframes meshDrift {
+  0%   { transform: scale(1) translate(0,0); }
+  50%  { transform: scale(1.04) translate(-8px,6px); }
+  100% { transform: scale(1.02) translate(5px,-5px); }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--md-surface-3); border-radius: 3px; }
+
+/* Material Symbols */
+.ms { font-family: 'Material Symbols Rounded'; font-size: 18px; line-height: 1;
+  font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 20; vertical-align: middle; }
+.ms.sm { font-size: 15px; }
+.ms.lg { font-size: 22px; }
+
+/* ── TOPBAR ── */
+.topbar {
+  position: relative; z-index: 10;
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 0 24px; height: 56px;
+  display: flex; align-items: center; gap: 16px;
+  box-shadow: var(--shadow-1);
+  flex-shrink: 0;
+}
+.tb-back {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: var(--radius-full);
+  border: 1px solid var(--md-surface-3); background: none;
+  font-family: var(--font-body); font-size: 12px; font-weight: 600;
+  color: var(--md-muted); cursor: pointer; transition: all 0.15s;
+}
+.tb-back:hover { background: var(--md-surface-1); color: var(--md-on-surface); }
+.tb-divider { width: 1px; height: 20px; background: var(--md-surface-3); }
+.tb-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: -0.2px; flex: 1; }
+.tb-meta {
+  font-family: var(--font-mono); font-size: 11px; color: var(--md-muted);
+  background: var(--md-surface-1); padding: 4px 12px; border-radius: var(--radius-full);
+}
+.tb-right { display: flex; gap: 8px; align-items: center; }
+.tb-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: var(--radius-full);
+  border: 1px solid var(--md-surface-3); background: none;
+  font-family: var(--font-body); font-size: 12px; font-weight: 600;
+  color: var(--md-muted); cursor: pointer; transition: all 0.15s;
+}
+.tb-btn:hover { background: var(--md-surface-1); color: var(--md-on-surface); }
+.tb-btn.primary { background: var(--g-blue); color: white; border-color: var(--g-blue); box-shadow: var(--shadow-1); }
+.tb-btn.primary:hover { opacity: 0.88; transform: translateY(-1px); }
+
+/* Theme toggle */
+.theme-toggle {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: none; background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--md-muted); position: relative; overflow: hidden;
+}
+.theme-toggle:hover { background: var(--md-surface-1); }
+.theme-toggle .icon-sun,
+.theme-toggle .icon-moon { position: absolute; transition: transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.3s; }
+.theme-toggle .icon-sun  { transform: rotate(0deg) scale(1); opacity: 1; }
+.theme-toggle .icon-moon { transform: rotate(90deg) scale(0); opacity: 0; }
+html.dark .theme-toggle .icon-sun  { transform: rotate(-90deg) scale(0); opacity: 0; }
+html.dark .theme-toggle .icon-moon { transform: rotate(0deg) scale(1); opacity: 1; }
+
+/* ── BODY LAYOUT ── */
+.page-body {
+  flex: 1; overflow: hidden;
+  display: grid;
+  grid-template-columns: 260px 1fr 300px;
+  position: relative; z-index: 1;
+}
+
+/* ── LEFT: Agent roster ── */
+.agent-roster {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-right: 1px solid var(--glass-border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.panel-head {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--glass-border);
+}
+.panel-title { font-size: 12px; font-weight: 700; color: var(--md-muted); text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--font-mono); }
+.panel-sub { font-size: 11px; color: var(--md-dim); margin-top: 3px; font-family: var(--font-mono); }
+
+.roster-list { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+
+.agent-card {
+  border-radius: var(--radius-md);
+  border: 1.5px solid transparent;
+  padding: 12px 13px;
+  cursor: pointer; transition: all 0.18s;
+  position: relative; overflow: hidden;
+}
+.agent-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: -1; border-radius: inherit;
+}
+html.dark .agent-card::before { background: rgba(255,255,255,0.05); }
+.agent-card:hover { transform: translateX(3px); box-shadow: var(--shadow-1); }
+.agent-card.selected { border-color: var(--agent-color, var(--g-blue)); box-shadow: 0 0 0 3px rgba(var(--agent-rgb, 26,115,232),0.12); }
+
+.ac-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ac-icon {
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+}
+.ac-name { font-size: 13px; font-weight: 700; letter-spacing: -0.2px; }
+.ac-role { font-family: var(--font-mono); font-size: 10px; color: var(--md-muted); }
+.ac-status-dot {
+  width: 8px; height: 8px; border-radius: 50%; margin-left: auto; flex-shrink: 0;
+}
+.dot-done    { background: var(--g-blue); }
+.dot-running { background: var(--g-green-mid); box-shadow: 0 0 6px var(--g-green-mid); animation: pulseAnim 1.5s ease-in-out infinite; }
+.dot-waiting { background: var(--g-amber); }
+.dot-idle    { background: var(--md-dim); }
+@keyframes pulseAnim { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.ac-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.ac-stat {
+  background: rgba(255,255,255,0.40); border-radius: var(--radius-sm);
+  padding: 5px 8px; border: 1px solid rgba(255,255,255,0.35);
+}
+html.dark .ac-stat { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.07); }
+.ac-stat-num { font-family: var(--font-mono); font-size: 14px; font-weight: 700; line-height: 1; }
+.ac-stat-lbl { font-family: var(--font-mono); font-size: 9px; color: var(--md-muted); margin-top: 1px; }
+
+.ac-bar-row { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.ac-bar-bg { flex: 1; height: 4px; background: var(--md-surface-2); border-radius: 100px; overflow: hidden; }
+.ac-bar-fill { height: 100%; border-radius: 100px; transition: width 1.5s cubic-bezier(.4,0,.2,1); }
+.ac-bar-pct { font-family: var(--font-mono); font-size: 10px; font-weight: 700; min-width: 28px; text-align: right; }
+
+/* Handoff summary at bottom of roster */
+.handoff-summary {
+  border-top: 1px solid var(--glass-border);
+  padding: 12px 14px;
+  flex-shrink: 0;
+}
+.hs-title { font-family: var(--font-mono); font-size: 10px; color: var(--md-dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.hs-flow { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.hs-node {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  padding: 3px 9px; border-radius: var(--radius-full);
+}
+.hs-arrow { color: var(--md-dim); font-size: 12px; }
+
+/* ── CENTER: Full timeline ── */
+.timeline-col {
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.tl-header {
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.tl-title { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+.tl-controls { display: flex; gap: 6px; align-items: center; }
+.tl-filter-btn {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  padding: 4px 11px; border-radius: var(--radius-full);
+  border: 1px solid var(--md-surface-3); background: none;
+  color: var(--md-muted); cursor: pointer; transition: all 0.15s;
+}
+.tl-filter-btn:hover { background: var(--md-surface-1); color: var(--md-on-surface); }
+.tl-filter-btn.active { background: var(--g-blue-light); color: var(--g-blue); border-color: rgba(26,115,232,0.3); }
+
+/* Agent lane headers */
+.lane-headers {
+  display: grid; padding: 0 20px;
+  border-bottom: 1px solid var(--md-surface-2);
+  background: var(--md-surface-1); flex-shrink: 0;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.lane-header-cell {
+  padding: 8px 10px; display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  border-right: 1px solid var(--md-surface-2);
+}
+.lane-header-cell:last-child { border-right: none; }
+.lane-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Timeline scroll area */
+.tl-scroll { flex: 1; overflow-y: auto; padding: 0 20px 20px; }
+
+/* Time group */
+.tg { margin-bottom: 4px; }
+.tg-time {
+  font-family: var(--font-mono); font-size: 10px; color: var(--md-dim);
+  letter-spacing: 0.5px; padding: 10px 0 4px;
+  display: flex; align-items: center; gap: 10px; position: sticky; top: 0;
+  background: transparent; z-index: 2;
+}
+.tg-time::after { content:''; flex:1; height:1px; background: var(--md-surface-2); }
+
+/* Swimlane row */
+.swimlane {
+  display: grid;
+  border-radius: var(--radius-md);
+  margin-bottom: 3px;
+  transition: all 0.15s;
+}
+.swimlane:hover { background: rgba(255,255,255,0.25); }
+html.dark .swimlane:hover { background: rgba(255,255,255,0.04); }
+
+.lane-cell {
+  padding: 4px 10px; min-height: 48px;
+  border-right: 1px dashed var(--md-surface-2);
+  display: flex; align-items: center;
+  position: relative;
+}
+.lane-cell:last-child { border-right: none; }
+
+/* Event bubble */
+.event-bubble {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 8px 11px;
+  width: 100%; cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.5);
+  position: relative; overflow: hidden;
+}
+.event-bubble::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--event-color, var(--g-blue)); border-radius: 3px 0 0 3px;
+}
+.event-bubble:hover { box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255,255,255,0.6); transform: translateY(-1px); }
+html.dark .event-bubble { box-shadow: 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04); }
+.event-bubble.selected { border-color: var(--event-color, var(--g-blue)); box-shadow: 0 0 0 2px rgba(26,115,232,0.2), var(--shadow-1); }
+
+.eb-type {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--event-color, var(--g-blue)); margin-bottom: 3px;
+}
+.eb-text { font-size: 11.5px; font-weight: 500; line-height: 1.4; }
+.eb-detail { font-family: var(--font-mono); font-size: 10px; color: var(--md-muted); margin-top: 3px; }
+.eb-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+  padding: 1px 6px; border-radius: var(--radius-full); margin-top: 4px;
+}
+
+/* Handoff connector */
+.handoff-cell {
+  display: flex; align-items: center; justify-content: center;
+}
+.handoff-arrow {
+  width: 100%; height: 2px;
+  background: linear-gradient(90deg, var(--from-color), var(--to-color));
+  position: relative; border-radius: 1px;
+}
+.handoff-arrow::after {
+  content: '';
+  position: absolute; right: -1px; top: -4px;
+  width: 0; height: 0;
+  border-left: 7px solid var(--to-color);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.handoff-label {
+  position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+  font-family: var(--font-mono); font-size: 9px; color: var(--md-muted);
+  white-space: nowrap; background: var(--md-bg); padding: 1px 5px; border-radius: 3px;
+}
+
+/* Empty lane cell */
+.lane-empty { opacity: 0.18; display: flex; align-items: center; justify-content: center; }
+
+/* ── RIGHT: Event detail panel ── */
+.detail-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  border-left: 1px solid var(--glass-border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.dp-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px; padding: 24px; text-align: center;
+}
+.dp-empty-icon { font-size: 40px; opacity: 0.18; }
+.dp-empty-title { font-size: 13px; font-weight: 600; color: var(--md-muted); }
+.dp-empty-sub { font-size: 12px; color: var(--md-dim); line-height: 1.6; max-width: 200px; }
+
+.dp-content { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+
+.dp-agent-row { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+.dp-agent-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.dp-agent-name { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+.dp-agent-time { font-family: var(--font-mono); font-size: 10px; color: var(--md-muted); }
+.dp-event-type {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  padding: 3px 10px; border-radius: var(--radius-full);
+  margin-top: 2px;
+}
+.dp-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; line-height: 1.3; letter-spacing: -0.3px; }
+
+.dp-section { }
+.dp-section-label {
+  font-family: var(--font-mono); font-size: 10px; color: var(--md-dim);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+.dp-section-label::after { content:''; flex:1; height:1px; background: var(--md-surface-2); }
+
+/* Reasoning steps */
+.reasoning-step {
+  display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start;
+}
+.rs-num {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  color: white; margin-top: 1px;
+}
+.rs-text { font-size: 12.5px; line-height: 1.55; }
+.rs-sub { font-family: var(--font-mono); font-size: 10px; color: var(--md-muted); margin-top: 2px; }
+
+/* Input/Output boxes */
+.io-box {
+  background: var(--card-bg);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md); padding: 10px 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+}
+html.dark .io-box { box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+.io-label { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--md-muted); margin-bottom: 6px; }
+.io-content { font-size: 12px; line-height: 1.6; }
+.io-file {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--md-muted);
+  padding: 3px 0; border-bottom: 1px solid var(--md-surface-2);
+}
+.io-file:last-child { border-bottom: none; }
+
+/* Handoff info */
+.handoff-info {
+  background: var(--g-blue-light);
+  border: 1px solid rgba(26,115,232,0.2);
+  border-radius: var(--radius-md); padding: 10px 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.hi-arrow { font-size: 18px; }
+.hi-text { font-size: 12px; line-height: 1.5; }
+.hi-agent { font-weight: 700; color: var(--g-blue); }
+
+/* Decision badge */
+.decision-box {
+  background: var(--g-violet-light); border: 1px solid rgba(124,77,255,0.2);
+  border-radius: var(--radius-md); padding: 10px 12px;
+}
+.db-label { font-family: var(--font-mono); font-size: 9px; font-weight: 700; color: var(--g-violet); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+.db-path { font-family: var(--font-mono); font-size: 11px; color: var(--md-on-surface); line-height: 1.7; }
+
+/* Stats grid in detail */
+.dp-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.dp-stat {
+  background: var(--card-bg); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--card-border); border-radius: var(--radius-md);
+  padding: 10px; text-align: center;
+}
+.dp-stat-num { font-family: var(--font-mono); font-size: 18px; font-weight: 700; }
+.dp-stat-lbl { font-family: var(--font-mono); font-size: 9px; color: var(--md-muted); margin-top: 2px; }
+
+/* animations */
+.anim-in { animation: slideIn 0.3s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes slideIn { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:translateX(0)} }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <button class="tb-back" onclick="window.location.href='/'"><span class="ms sm">arrow_back</span> Dashboard</button>
+  <div class="tb-divider"></div>
+  <div class="tb-title">Agent Trace — API Documentation Workflow</div>
+  <div class="tb-meta" id="tbMeta">Waiting for live workflow...</div>
+  <div class="tb-right">
+    <button class="tb-btn" onclick="exportTrace()"><span class="ms sm">download</span> Export</button>
+    <button class="tb-btn" onclick="filterTl('active')"><span class="ms sm">filter_list</span> Active Workflows Only</button>
+    <button class="theme-toggle" onclick="toggleTheme()">
+      <span class="ms icon-sun">light_mode</span>
+      <span class="ms icon-moon">dark_mode</span>
+    </button>
+  </div>
+</div>
+
+<!-- PAGE BODY -->
+<div class="page-body" id="pageBody">
+
+  <!-- LEFT: Agent Roster -->
+  <div class="agent-roster">
+    <div class="panel-head">
+      <div class="panel-title" id="rosterTitle">0 Agents</div>
+      <div class="panel-sub" id="rosterSub">Waiting for agents...</div>
+    </div>
+    <div class="roster-list" id="rosterList"></div>
+    <div class="handoff-summary">
+      <div class="hs-title">Execution Order</div>
+      <div class="hs-flow" id="hsFlow"></div>
+    </div>
+  </div>
+
+  <!-- CENTER: Timeline -->
+  <div class="timeline-col">
+    <div class="tl-header">
+      <div class="tl-title">Full Timeline</div>
+      <div class="tl-controls">
+        <button class="tl-filter-btn active" onclick="filterTl('all',this)">All</button>
+        <button class="tl-filter-btn" onclick="filterTl('decision',this)">Decisions</button>
+        <button class="tl-filter-btn" onclick="filterTl('handoff',this)">Handoffs</button>
+        <button class="tl-filter-btn" onclick="filterTl('output',this)">Outputs</button>
+        <button class="tl-filter-btn" onclick="filterTl('error',this)">Issues</button>
+      </div>
+    </div>
+
+    <!-- Lane headers (injected by JS) -->
+    <div class="lane-headers" id="laneHeaders"></div>
+
+    <div class="tl-scroll" id="tlScroll"></div>
+  </div>
+
+  <!-- RIGHT: Detail panel -->
+  <div class="detail-panel" id="detailPanel">
+    <div class="dp-empty" id="dpEmpty">
+      <div class="dp-empty-icon">🔍</div>
+      <div class="dp-empty-title">Click any event to inspect</div>
+      <div class="dp-empty-sub">See the full reasoning, inputs, outputs, and handoffs for any agent action.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────
+const AGENTS = [
+  { id:'orchestrator', name:'Orchestrator', role:'Coordinator',     icon:'🎯', color:'#1a73e8', rgb:'26,115,232', iconBg:'#e8f0fe', status:'done',    tasks:12, tokens:4200, duration:'38m', load:72  },
+  { id:'researcher',   name:'Researcher',   role:'Web & Doc Search', icon:'🔍', color:'#0d47a1', rgb:'13,71,161',  iconBg:'#e3f2fd', status:'done',    tasks:4,  tokens:6800, duration:'14m', load:55  },
+  { id:'critic',       name:'Critic',       role:'Quality Review',   icon:'⚖️', color:'#b06000', rgb:'176,96,0',   iconBg:'#fef7e0', status:'done',    tasks:6,  tokens:2900, duration:'22m', load:88  },
+  { id:'auditor',      name:'Auditor',      role:'Safety & PII',     icon:'🛡️', color:'#007b83', rgb:'0,123,131',  iconBg:'#e4f7f7', status:'done',    tasks:3,  tokens:1100, duration:'38m', load:40  },
+  { id:'writer',       name:'Writer',       role:'Content Drafting', icon:'✍️', color:'#7c4dff', rgb:'124,77,255', iconBg:'#ede7f6', status:'running', tasks:2,  tokens:3400, duration:'ongoing', load:65 },
+  { id:'planner',      name:'Planner',      role:'Task Decomposer',  icon:'🗂️', color:'#137333', rgb:'19,115,51',  iconBg:'#e6f4ea', status:'done',    tasks:1,  tokens:800,  duration:'2m', load:100 },
+];
+
+const HANDOFF_ORDER = ['planner','orchestrator','researcher','critic','auditor','writer'];
+const EVENTS = [
+  { id:'e1', time:'09:00', agent:'planner', type:'decision', text:'Decomposed goal into 5 subtasks', dur:12, deps:[] },
+  { id:'e2', time:'09:02', agent:'orchestrator', type:'handoff', text:'Assigned data gathering to Researcher', dur:5, deps:['e1'] },
+  { id:'e3', time:'09:03', agent:'researcher', type:'decision', text:'Scraping latest docs from source repositories', dur:45, deps:['e2'] },
+  { id:'e4', time:'09:05', agent:'researcher', type:'handoff', text:'Extracted schemas passed to Critic', dur:4, deps:['e3'] },
+  { id:'e5', time:'09:10', agent:'critic', type:'decision', text:'Validated 94% of extracted schemas', dur:30, deps:['e4'] },
+  { id:'e6', time:'09:15', agent:'auditor', type:'decision', text:'Scanned for PII and security keys. All clear.', dur:25, deps:['e5'] },
+  { id:'e7', time:'09:25', agent:'orchestrator', type:'handoff', text:'Assigned drafting to Writer', dur:8, deps:['e6'] },
+  { id:'e8', time:'09:30', agent:'writer', type:'decision', text:'Drafting markdown documentation', dur:55, deps:['e7'] },
+  { id:'e9', time:'09:45', agent:'writer', type:'output', text:'API_Documentation_v2.pdf generated successfully', dur:10, deps:['e8'] }
+];
+const savedGoal = localStorage.getItem('currentGoal');
+if (savedGoal) {
+  document.getElementById('tbMeta').textContent = savedGoal;
+} else {
+  document.getElementById('tbMeta').textContent = "Waiting for goal...";
+}
+
+
+// ── Build agent color maps ──
+const agentMap = {};
+AGENTS.forEach(a => agentMap[a.id] = a);
+
+// The 5 visible lane agents (planner is "done in 2m" so we skip it from lanes)
+const LANE_AGENTS = ['orchestrator','researcher','critic','auditor','writer'];
+
+// ── Render roster ──
+function renderRoster() {
+  const el = document.getElementById('rosterList');
+  el.innerHTML = '';
+  AGENTS.forEach((a,i) => {
+    const card = document.createElement('div');
+    card.className = 'agent-card';
+    card.style.setProperty('--agent-color', a.color);
+    card.style.setProperty('--agent-rgb', a.rgb);
+    card.setAttribute('data-agent', a.id);
+    const statusDot = { done:'dot-done', running:'dot-running', waiting:'dot-waiting', idle:'dot-idle' }[a.status];
+    const pct = a.load;
+    card.innerHTML = `
+      <div class="ac-top">
+        <div class="ac-icon" style="background:${a.iconBg}">${a.icon}</div>
+        <div>
+          <div class="ac-name">${a.name}</div>
+          <div class="ac-role">${a.role}</div>
+        </div>
+        <div class="ac-status-dot ${statusDot}" style="${a.status==='running'?'background:'+a.color+';box-shadow:0 0 6px '+a.color:''}"></div>
+      </div>
+      <div class="ac-stats">
+        <div class="ac-stat">
+          <div class="ac-stat-num" style="color:${a.color}">${a.tasks}</div>
+          <div class="ac-stat-lbl">EVENTS</div>
+        </div>
+        <div class="ac-stat">
+          <div class="ac-stat-num" style="color:${a.color}">${(a.tokens/1000).toFixed(1)}k</div>
+          <div class="ac-stat-lbl">TOKENS</div>
+        </div>
+      </div>
+      <div class="ac-bar-row">
+        <div class="ac-bar-bg"><div class="ac-bar-fill" style="width:0%;background:${a.color}" id="rbar-${a.id}"></div></div>
+        <div class="ac-bar-pct" style="color:${a.color}">${a.duration}</div>
+      </div>`;
+    card.addEventListener('click', () => filterByAgent(a.id, card));
+    el.appendChild(card);
+    setTimeout(() => { const b = document.getElementById('rbar-'+a.id); if(b) b.style.width = pct+'%'; }, 500 + i*80);
+  });
+}
+
+// ── Handoff flow ──
+function renderHandoffFlow() {
+  const el = document.getElementById('hsFlow');
+  el.innerHTML = '';
+  HANDOFF_ORDER.forEach((id, i) => {
+    const a = agentMap[id];
+    const chip = document.createElement('span');
+    chip.className = 'hs-node';
+    chip.style.background = a.iconBg;
+    chip.style.color = a.color;
+    chip.textContent = a.icon + ' ' + a.name;
+    el.appendChild(chip);
+    if(i < HANDOFF_ORDER.length - 1) {
+      const arr = document.createElement('span');
+      arr.className = 'hs-arrow';
+      arr.textContent = '→';
+      el.appendChild(arr);
+    }
+  });
+}
+
+// ── Lane headers ──
+function renderLaneHeaders() {
+  const el = document.getElementById('laneHeaders');
+  el.style.gridTemplateColumns = LANE_AGENTS.map(()=>'1fr').join(' ');
+  el.innerHTML = '';
+  LANE_AGENTS.forEach(id => {
+    const a = agentMap[id];
+    const cell = document.createElement('div');
+    cell.className = 'lane-header-cell';
+    cell.innerHTML = `<div class="lane-dot" style="background:${a.color};box-shadow:0 0 4px ${a.color}40"></div>${a.icon} ${a.name}`;
+    el.appendChild(cell);
+  });
+}
+
+// ── Timeline ──
+let activeFilter = 'all';
+let selectedEvent = null;
+
+function groupByTime(events) {
+  const groups = {};
+  events.forEach(e => {
+    if(!groups[e.time]) groups[e.time] = [];
+    groups[e.time].push(e);
+  });
+  return groups;
+}
+
+function renderTimeline(filter) {
+  const scroll = document.getElementById('tlScroll');
+  scroll.innerHTML = '';
+  const visible = EVENTS.filter(e => filter==='all' || e.filter===filter || filter==='all');
+  const groups = groupByTime(visible);
+
+  Object.keys(groups).sort().forEach(time => {
+    const tg = document.createElement('div');
+    tg.className = 'tg';
+
+    // Time label
+    const tgTime = document.createElement('div');
+    tgTime.className = 'tg-time';
+    tgTime.textContent = time;
+    tg.appendChild(tgTime);
+
+    // Get events at this time
+    const timeEvents = groups[time];
+
+    // Build one swimlane row per "event slot" at this time
+    // We lay out which agent column each event falls in
+    timeEvents.forEach(ev => {
+      const row = document.createElement('div');
+      row.className = 'swimlane';
+      row.style.gridTemplateColumns = LANE_AGENTS.map(()=>'1fr').join(' ');
+
+      LANE_AGENTS.forEach(agentId => {
+        const cell = document.createElement('div');
+        cell.className = 'lane-cell';
+
+        if(ev.agent === agentId) {
+          const a = agentMap[agentId];
+          const bubble = document.createElement('div');
+          bubble.className = 'event-bubble';
+          if(selectedEvent && selectedEvent.id === ev.id) bubble.classList.add('selected');
+          bubble.style.setProperty('--event-color', a.color);
+          const typeColors = { decision:'#7c4dff', task:'#1a73e8', output:'#137333', error:'#d93025', handoff:'#007b83' };
+          const typeColor = typeColors[ev.type] || a.color;
+          bubble.style.setProperty('--event-color', typeColor);
+          bubble.innerHTML = `
+            <div class="eb-type" style="color:${typeColor}">${ev.type.toUpperCase()}</div>
+            <div class="eb-text">${ev.title || ev.text || ''}</div>
+            <div class="eb-detail">${ev.detail || ''}</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">
+              ${(ev.tags||[]).map(t=>`<span class="eb-tag" style="background:${typeColor}18;color:${typeColor}">${t}</span>`).join('')}
+            </div>`;
+          bubble.addEventListener('click', () => selectEvent(ev, bubble));
+          cell.appendChild(bubble);
+
+          // Handoff arrow if needed
+          if(ev.handoffTo && ev.handoffTo !== agentId) {
+            const toIdx = LANE_AGENTS.indexOf(ev.handoffTo);
+            const fromIdx = LANE_AGENTS.indexOf(agentId);
+            if(toIdx !== -1 && fromIdx !== -1) {
+              // We'll handle visual handoff via a spanning div approach — just note it
+              bubble.style.position = 'relative';
+              const badge = document.createElement('div');
+              badge.style.cssText = `position:absolute;bottom:6px;right:6px;font-family:var(--font-mono);font-size:9px;background:${agentMap[ev.handoffTo]?.color||'#1a73e8'};color:white;padding:2px 8px;border-radius:100px;z-index:3;font-weight:600;box-shadow:var(--shadow-1);`;
+              badge.textContent = '→ ' + agentMap[ev.handoffTo]?.name;
+              bubble.appendChild(badge);
+            }
+          }
+        } else {
+          cell.classList.add('lane-empty');
+          cell.innerHTML = `<div style="width:1px;height:100%;background:var(--md-surface-2);margin:0 auto;border-radius:1px;"></div>`;
+        }
+        row.appendChild(cell);
+      });
+      tg.appendChild(row);
+    });
+
+    scroll.appendChild(tg);
+  });
+}
+
+// ── Filter ──
+function filterTl(filter, btn) {
+  activeFilter = filter;
+  document.querySelectorAll('.tl-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTimeline(filter);
+}
+
+// ── Agent filter ──
+let agentFilter = null;
+function filterByAgent(id, card) {
+  if(agentFilter === id) {
+    agentFilter = null;
+    document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
+    renderTimeline(activeFilter);
+  } else {
+    agentFilter = id;
+    document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    const filtered = EVENTS.filter(e => e.agent === id);
+    renderFilteredEvents(filtered);
+  }
+}
+
+function renderFilteredEvents(events) {
+  const scroll = document.getElementById('tlScroll');
+  scroll.innerHTML = '';
+  events.forEach(ev => {
+    const a = agentMap[ev.agent];
+    const typeColors = { decision:'#7c4dff', task:'#1a73e8', output:'#137333', error:'#d93025', handoff:'#007b83' };
+    const typeColor = typeColors[ev.type] || a.color;
+    const row = document.createElement('div');
+    row.style.cssText = 'padding:6px 0;';
+    const bubble = document.createElement('div');
+    bubble.className = 'event-bubble';
+    bubble.style.setProperty('--event-color', typeColor);
+    bubble.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--md-dim)">${ev.time}</span>
+        <span class="eb-type" style="color:${typeColor}">${ev.type.toUpperCase()}</span>
+      </div>
+      <div class="eb-text">${ev.title || ev.text || ''}</div>
+      <div class="eb-detail">${ev.detail || ''}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">
+        ${(ev.tags||[]).map(t=>`<span class="eb-tag" style="background:${typeColor}18;color:${typeColor}">${t}</span>`).join('')}
+      </div>`;
+    bubble.addEventListener('click', () => selectEvent(ev, bubble));
+    row.appendChild(bubble);
+    scroll.appendChild(row);
+  });
+}
+
+// ── Select event → detail panel ──
+function selectEvent(ev, bubble) {
+  selectedEvent = ev;
+  document.querySelectorAll('.event-bubble').forEach(b => b.classList.remove('selected'));
+  bubble.classList.add('selected');
+
+  const a = agentMap[ev.agent];
+  const typeColors = { decision:'#7c4dff', task:'#1a73e8', output:'#137333', error:'#d93025', handoff:'#007b83' };
+  const typeColor = typeColors[ev.type] || a.color;
+
+  const dp = document.getElementById('detailPanel');
+  const empty = document.getElementById('dpEmpty');
+  if(empty) empty.style.display = 'none';
+
+  let existing = dp.querySelector('.dp-content');
+  if(existing) existing.remove();
+
+  const content = document.createElement('div');
+  content.className = 'dp-content anim-in';
+  content.innerHTML = `
+    <!-- Agent + event type -->
+    <div>
+      <div class="dp-agent-row">
+        <div class="dp-agent-icon" style="background:${a.iconBg}">${a.icon}</div>
+        <div>
+          <div class="dp-agent-name">${a.name}</div>
+          <div class="dp-agent-time">${ev.time} · ${a.role}</div>
+        </div>
+      </div>
+      <div class="dp-event-type" style="background:${typeColor}18;color:${typeColor};border:1px solid ${typeColor}30">
+        ${ev.type.toUpperCase()}
+      </div>
+    </div>
+
+    <!-- Title -->
+    <div class="dp-title">${ev.title || ev.text || ''}</div>
+
+    <!-- Stats -->
+    <div class="dp-stats">
+      <div class="dp-stat">
+        <div class="dp-stat-num" style="color:${a.color}">${ev.tags?.length || 0}</div>
+        <div class="dp-stat-lbl">TAGS</div>
+      </div>
+      <div class="dp-stat">
+        <div class="dp-stat-num" style="color:${a.color}">${ev.reasoning?.length || 0}</div>
+        <div class="dp-stat-lbl">STEPS</div>
+      </div>
+      <div class="dp-stat">
+        <div class="dp-stat-num" style="color:${a.color}">${ev.files?.length || 0}</div>
+        <div class="dp-stat-lbl">FILES</div>
+      </div>
+    </div>
+
+    <!-- Reasoning -->
+    ${ev.reasoning ? `
+    <div class="dp-section">
+      <div class="dp-section-label">Reasoning steps</div>
+      ${ev.reasoning.map((r,i)=>`
+        <div class="reasoning-step">
+          <div class="rs-num" style="background:${a.color}">${i+1}</div>
+          <div><div class="rs-text">${r}</div></div>
+        </div>`).join('')}
+    </div>` : ''}
+
+    <!-- Input -->
+    ${ev.input ? `
+    <div class="dp-section">
+      <div class="dp-section-label">Input</div>
+      <div class="io-box">
+        <div class="io-label">RECEIVED</div>
+        <div class="io-content">${ev.input}</div>
+      </div>
+    </div>` : ''}
+
+    <!-- Output -->
+    ${ev.output ? `
+    <div class="dp-section">
+      <div class="dp-section-label">Output</div>
+      <div class="io-box">
+        <div class="io-label">PRODUCED</div>
+        <div class="io-content">${ev.output}</div>
+        ${ev.files ? ev.files.map(f=>`<div class="io-file"><span class="ms sm">description</span>${f}</div>`).join('') : ''}
+      </div>
+    </div>` : ''}
+
+    <!-- Handoff -->
+    ${ev.handoffTo ? `
+    <div class="dp-section">
+      <div class="dp-section-label">Handoff</div>
+      <div class="handoff-info">
+        <div class="hi-arrow">→</div>
+        <div class="hi-text">Passed to <span class="hi-agent">${agentMap[ev.handoffTo]?.icon} ${agentMap[ev.handoffTo]?.name}</span>. Context window and outputs transferred.</div>
+      </div>
+    </div>` : ''}
+
+    <!-- Decision path -->
+    ${ev.decision ? `
+    <div class="dp-section">
+      <div class="dp-section-label">Decision path</div>
+      <div class="decision-box">
+        <div class="db-label">How this was decided</div>
+        <div class="db-path">${ev.decision.split(' → ').map((s,i,arr)=>
+          `<span style="color:var(--g-violet)">${s}</span>${i<arr.length-1?' → ':''}`).join('')}</div>
+      </div>
+    </div>` : ''}
+  `;
+
+  dp.appendChild(content);
+}
+
+// ── Top bar buttons ──
+function exportTrace() {
+  const btn = event.target.closest('button');
+  btn.innerHTML = '<span class="ms sm">check</span> Exported';
+  setTimeout(()=>btn.innerHTML='<span class="ms sm">download</span> Export',2000);
+}
+
+let replayRunning = false;
+let replayTimers = [];
+
+function replayTrace() {
+  if(replayRunning) { stopReplay(); return; }
+  replayRunning = true;
+
+  // Update button
+  const btn = event.target.closest('button');
+  btn.innerHTML = '<span class="ms sm">stop</span> Stop';
+  btn.style.background = 'var(--g-red-light)';
+  btn.style.color = 'var(--g-red)';
+  btn.style.borderColor = 'rgba(217,48,37,0.3)';
+
+  // Hide all event bubbles instantly
+  const bubbles = document.querySelectorAll('.event-bubble');
+  bubbles.forEach(b => {
+    b.style.opacity = '0';
+    b.style.transform = 'translateY(6px)';
+    b.style.transition = 'none';
+  });
+
+  // Clear detail panel
+  const dp = document.getElementById('detailPanel');
+  const existing = dp.querySelector('.dp-content');
+  if(existing) existing.remove();
+  const emptyEl = document.getElementById('dpEmpty');
+  if(emptyEl) emptyEl.style.display = 'flex';
+
+  // Scroll timeline to top
+  document.getElementById('tlScroll').scrollTop = 0;
+
+  // Replay each event with delay
+  const delay_per_event = 1200;
+  bubbles.forEach((bubble, i) => {
+    const t = setTimeout(() => {
+      if(!replayRunning) return;
+
+      // Animate bubble in
+      bubble.style.transition = 'opacity 0.35s ease, transform 0.35s cubic-bezier(.4,0,.2,1)';
+      bubble.style.opacity = '1';
+      bubble.style.transform = 'translateY(0)';
+
+      // Scroll into view
+      bubble.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      // Highlight it
+      document.querySelectorAll('.event-bubble').forEach(b=>b.classList.remove('selected'));
+      bubble.classList.add('selected');
+
+      // Auto-open detail panel for this event
+      // Find the event data by index
+      const allEvents = EVENTS.filter(e => activeFilter==='all' || e.filter===activeFilter);
+      const ev = allEvents[i];
+      if(ev) selectEvent(ev, bubble);
+
+      // If last event — stop replay
+      if(i === bubbles.length - 1) {
+        setTimeout(() => stopReplay(), 1500);
+      }
+    }, i * delay_per_event);
+    replayTimers.push(t);
+  });
+}
+
+function stopReplay() {
+  replayRunning = false;
+  replayTimers.forEach(t => clearTimeout(t));
+  replayTimers = [];
+
+  // Restore button
+  const btn = document.querySelector('[onclick="replayTrace()"]');
+  if(btn) {
+    btn.innerHTML = '<span class="ms sm">replay</span> Replay';
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }
+
+  // Make all bubbles visible
+  document.querySelectorAll('.event-bubble').forEach(b => {
+    b.style.opacity = '1';
+    b.style.transform = 'translateY(0)';
+  });
+}
+
+// ── Dark mode ──
+function applyTheme(dark) {
+  document.documentElement.classList.toggle('dark', dark);
+  try { localStorage.setItem('orchestra-theme', dark ? 'dark' : 'light'); } catch(e){}
+}
+function toggleTheme() { applyTheme(!document.documentElement.classList.contains('dark')); }
+(function(){
+  let saved; try { saved = localStorage.getItem('orchestra-theme'); } catch(e){}
+  if(saved==='dark') applyTheme(true);
+  else if(!saved && window.matchMedia('(prefers-color-scheme: dark)').matches) applyTheme(true);
+})();
+
+// ── Init ──
+renderRoster();
+renderHandoffFlow();
+renderLaneHeaders();
+renderTimeline('all');
+
+// Auto-select first event
+setTimeout(()=>{
+  const first = document.querySelector('.event-bubble');
+  if(first) first.click();
+},300);
+
+// ── Live SSE Connection ──
+let traceStream = null;
+let eventCounter = 0;
+
+function connectLiveTrace() {
+  if(traceStream) return;
+  const protocol = window.location.protocol;
+  const url = `${protocol}//${window.location.host}/api/workflows/thought-trace/stream`;
+  // Wait, does the backend have /api/workflows prefix? I checked workflows.py and it didn't, but the proxy might. I will just use /thought-trace/stream since app.py includes router at root.
+  
+  traceStream = new EventSource(`/thought-trace/stream`);
+  
+  traceStream.onopen = () => console.log('Connected to trace SSE stream');
+  
+  traceStream.addEventListener('thought', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      const agentId = (data.agent || 'orchestrator').toLowerCase();
+      
+      const n = new Date();
+      const time = data.ts || `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+      eventCounter++;
+      
+      // Determine type based on thought_type
+      let type = 'task';
+      if(data.type === 'alert' || data.type === 'error') type = 'error';
+      else if(data.type === 'result' || data.type === 'output') type = 'output';
+      else if(data.type === 'dialogue' || data.type === 'decision') type = 'decision';
+      else if(data.type === 'finding') type = 'decision';
+      
+      const title = data.status === 'thinking' ? 'Reasoning step' : (data.type === 'action' ? 'Executing action' : 'Agent log');
+      const textRaw = data.message || data.status || '';
+      // Strip HTML
+      const detail = textRaw.replace(/<[^>]*>?/gm, '');
+      
+      const newEv = {
+        id: 'lv' + eventCounter,
+        time: time,
+        agent: agentId,
+        type: type,
+        title: title,
+        detail: detail,
+        tags: ['live stream'],
+        filter: type === 'task' ? 'all' : type,
+        reasoning: [detail],
+        input: 'Streamed live from backend',
+        output: '-',
+        handoffTo: null,
+        decision: '-'
+      };
+      
+      EVENTS.push(newEv);
+      
+      const isFirst = EVENTS.length === 1;
+      
+      updateHeaderStats();
+      renderTimeline(activeFilter);
+      renderRoster(); // updates load bars / tasks
+      
+      if(isFirst) {
+        setTimeout(()=>{
+          const first = document.querySelector('.event-bubble');
+          if(first) first.click();
+        }, 100);
+      }
+      
+      // Auto scroll to bottom
+      const scroll = document.getElementById('tlScroll');
+      if(scroll) scroll.scrollTop = scroll.scrollHeight;
+      
+    } catch(err) { console.error('SSE parse error', err); }
+  });
+  
+  traceStream.onerror = () => {
+    traceStream.close();
+    traceStream = null;
+    setTimeout(connectLiveTrace, 5000); // auto reconnect
+  };
+}
+
+// Start connection
+connectLiveTrace();
+
+// Dynamic header stats
+function updateHeaderStats() {
+  const meta = document.getElementById('tbMeta');
+  const rTitle = document.getElementById('rosterTitle');
+  const rSub = document.getElementById('rosterSub');
+  if(!EVENTS.length) {
+    meta.textContent = 'Waiting for live workflow...';
+    if(rTitle) rTitle.textContent = '0 Agents';
+    rSub.textContent = 'Waiting for agents...';
+    return;
+  }
+  
+  const startTime = EVENTS[0].time;
+  const uniqueAgents = new Set(EVENTS.map(e => e.agent)).size;
+  meta.textContent = `Run started ${startTime} · ${uniqueAgents} agents active`;
+  if(rTitle) rTitle.textContent = `${uniqueAgents} Agents`;
+  rSub.textContent = `${uniqueAgents} agents involved`;
+}
+updateHeaderStats();
+</script>
+</body>
+</html>
